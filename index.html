@@ -152,6 +152,44 @@
   .btn-delete-teacher{ color:var(--red); border-color:rgba(192,57,43,.3); }
   .btn-save-teacher{ background:var(--green); color:#fff; border-color:var(--green); }
   .empty-state{ color:var(--muted); font-size:13.5px; padding:14px 0; }
+
+  .input-with-button{ display:flex; gap:8px; align-items:stretch; }
+  .input-with-button input{ flex:1; }
+  .btn-inline{
+    flex-shrink:0; white-space:nowrap;
+    font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600;
+    padding:0 12px; border-radius:5px; border:1px solid rgba(47,111,79,.35);
+    background:var(--success-bg); color:var(--green); cursor:pointer;
+  }
+
+  .banner-warning{
+    background:var(--danger-bg); border:1px solid rgba(192,57,43,.25); border-radius:var(--radius);
+    padding:12px 16px; font-size:13.5px; color:var(--ink); margin-bottom:16px; line-height:1.5;
+  }
+  .banner-warning strong{ color:var(--red); }
+
+  .student-card{ padding:18px 18px 18px 30px; }
+  .status-pill{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:600;
+    padding:4px 9px; border-radius:20px; white-space:nowrap; flex-shrink:0;
+  }
+  .status-ok{ background:var(--success-bg); color:var(--green); }
+  .status-warn{ background:var(--danger-bg); color:var(--red); }
+
+  .stat-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .stat-box{ text-align:center; background:var(--cream); border-radius:5px; padding:12px 6px; }
+  .stat-value{ font-size:20px; font-weight:600; }
+  .stat-label{ font-size:10.5px; color:var(--muted); margin-top:3px; text-transform:uppercase; letter-spacing:.04em; }
+
+  .subject-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  .subject-table th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase; color:var(--muted); padding:6px 4px; border-bottom:1px solid rgba(42,42,36,.1); }
+  .subject-table td{ padding:8px 4px; border-bottom:1px solid rgba(42,42,36,.06); }
+  .subject-table td:not(:first-child){ font-family:'IBM Plex Mono',monospace; }
+
+  .entry-subjects-grid{ display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
+  .entry-subjects-grid label{ margin:14px 0 6px; }
+  .subject-field:first-child label{ margin-top:0; }
+  .subject-field:nth-child(2) label{ margin-top:0; }
 </style>
 </head>
 <body>
@@ -249,7 +287,10 @@
         <label for="new-teacher-name">Ad Soyad</label>
         <input type="text" id="new-teacher-name" autocomplete="off" required>
         <label for="new-teacher-pin">PIN</label>
-        <input type="text" id="new-teacher-pin" class="pin-input" autocomplete="off" required>
+        <div class="input-with-button">
+          <input type="text" id="new-teacher-pin" class="pin-input" autocomplete="off" required>
+          <button type="button" class="btn-inline" id="btn-generate-pin">Otomatik Ata</button>
+        </div>
         <div class="error-text" id="add-teacher-error"></div>
         <button type="submit" class="btn btn-primary">Ekle</button>
       </form>
@@ -259,7 +300,114 @@
     <div id="teacher-list"><p class="empty-state">Yükleniyor…</p></div>
   </section>
 
-  <!-- GEÇİCİ PANEL (bir sonraki adımda dolduracağız) -->
+  <!-- ÖĞRETMEN PANELİ -->
+  <section id="screen-teacher-dashboard" class="screen">
+    <div class="top-bar">
+      <div>
+        <div class="eyebrow">ÖĞRETMEN</div>
+        <h2 id="teacher-name"></h2>
+      </div>
+      <button type="button" class="btn-icon" id="teacher-logout">Çıkış</button>
+    </div>
+
+    <div id="missing-today-banner"></div>
+
+    <div class="card">
+      <h3>Yeni Öğrenci Ekle</h3>
+      <form id="form-add-student">
+        <label for="new-student-name">Ad Soyad</label>
+        <input type="text" id="new-student-name" autocomplete="off" required>
+        <label for="new-student-username">Kullanıcı Adı</label>
+        <input type="text" id="new-student-username" autocomplete="off" required>
+        <label for="new-student-password">Şifre</label>
+        <div class="input-with-button">
+          <input type="text" id="new-student-password" autocomplete="off" required>
+          <button type="button" class="btn-inline" id="btn-generate-student-password">Otomatik Ata</button>
+        </div>
+        <label for="new-student-target">Günlük Hedef (opsiyonel)</label>
+        <input type="number" id="new-student-target" min="0" step="1">
+        <div class="error-text" id="add-student-error"></div>
+        <button type="submit" class="btn btn-primary">Ekle</button>
+      </form>
+    </div>
+
+    <h3 class="section-label">Öğrenciler</h3>
+    <div id="student-list"><p class="empty-state">Yükleniyor…</p></div>
+  </section>
+
+  <!-- ÖĞRENCİ DETAY (öğretmen görünümü) -->
+  <section id="screen-student-detail" class="screen">
+    <button type="button" class="btn btn-ghost" id="detail-back" style="margin-top:0;">&larr; Öğrenci listesine dön</button>
+    <div class="top-bar">
+      <div>
+        <div class="eyebrow">ÖĞRENCİ</div>
+        <h2 id="detail-student-name"></h2>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Son Giriş</div>
+      <p id="detail-last-entry" class="mono" style="font-size:16px; margin:0;"></p>
+    </div>
+
+    <div class="card">
+      <h3>İstatistikler</h3>
+      <div class="stat-grid" id="detail-stat-grid"></div>
+    </div>
+
+    <div class="card">
+      <h3>Derslere Göre</h3>
+      <div id="detail-subject-table"></div>
+    </div>
+
+    <div class="card">
+      <h3>Soru Girişi Ekle / Düzenle</h3>
+      <label for="detail-entry-date">Tarih</label>
+      <input type="date" id="detail-entry-date">
+      <div class="entry-subjects-grid" id="detail-entry-subjects"></div>
+      <div class="error-text" id="detail-entry-error"></div>
+      <button type="button" class="btn btn-primary" id="btn-save-entry">Kaydet</button>
+    </div>
+
+    <div class="card">
+      <h3>Haftaya Dair Planlananlar ve Öneriler</h3>
+      <p class="hint-text" style="margin-top:-8px;">Öğrenci bunu kendi sayfasında salt-okunur görür.</p>
+      <textarea id="detail-weekly-plan" rows="4" placeholder="Bu hafta öğrenciden ne bekliyorsun?"></textarea>
+      <button type="button" class="btn btn-primary" id="btn-save-plan">Kaydet</button>
+    </div>
+
+    <div class="card">
+      <h3>Rehberlik Görüş ve Öneriler</h3>
+      <p class="hint-text" style="margin-top:-8px;">Öğrenci bunu kendi sayfasında salt-okunur görür.</p>
+      <textarea id="detail-guidance-note" rows="4" placeholder="Motivasyon, çalışma alışkanlıkları vb. gözlemlerin"></textarea>
+      <button type="button" class="btn btn-primary" id="btn-save-guidance">Kaydet</button>
+    </div>
+
+    <div class="card">
+      <h3>Giriş Bilgileri</h3>
+      <label for="detail-username">Kullanıcı Adı</label>
+      <input type="text" id="detail-username">
+      <label for="detail-password">Şifre</label>
+      <input type="text" id="detail-password">
+      <div class="error-text" id="detail-credentials-error"></div>
+      <button type="button" class="btn btn-primary" id="btn-save-credentials">Kaydet</button>
+    </div>
+
+    <div class="card">
+      <h3>Günlük Hedef</h3>
+      <input type="number" id="detail-target" min="0" step="1">
+      <div class="error-text" id="detail-target-error"></div>
+      <button type="button" class="btn btn-primary" id="btn-save-target">Kaydet</button>
+    </div>
+
+    <div class="card">
+      <h3>Tehlikeli Bölge</h3>
+      <p class="hint-text">Öğrenciyi ve tüm kayıtlarını (soru girişleri, denemeler, plan, notlar) kalıcı olarak siler.</p>
+      <button type="button" class="btn btn-danger" id="btn-delete-student">Öğrenciyi Sil</button>
+    </div>
+  </section>
+
+  <!-- GEÇİCİ PANEL (öğrenci rolü için — bir sonraki adımda dolduracağız) -->
   <section id="screen-dashboard-placeholder" class="screen">
     <div class="top-bar">
       <div>
@@ -311,7 +459,8 @@
 
   function enterDashboard(){
     if (session.role === 'admin') { loadAdminDashboard(); return; }
-    $('welcome-role').textContent = { teacher:'ÖĞRETMEN', student:'ÖĞRENCİ' }[session.role];
+    if (session.role === 'teacher') { loadTeacherDashboard(); return; }
+    $('welcome-role').textContent = 'ÖĞRENCİ';
     $('welcome-name').textContent = 'Merhaba, ' + session.name;
     showScreen('screen-dashboard-placeholder');
   }
@@ -325,6 +474,19 @@
     const d = new Date(iso);
     return d.toLocaleDateString('tr-TR', { day:'2-digit', month:'short', year:'numeric' });
   }
+  function todayStr(){
+    const d = new Date();
+    const local = new Date(d.getTime() - d.getTimezoneOffset()*60000);
+    return local.toISOString().slice(0,10);
+  }
+  function generatePin(length){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 0,O,1,I karışmasın diye çıkarıldı
+    let out = '';
+    for (let i = 0; i < (length || 6); i++) out += chars[Math.floor(Math.random() * chars.length)];
+    return out;
+  }
+  $('btn-generate-pin').addEventListener('click', () => { $('new-teacher-pin').value = generatePin(6); });
+  $('btn-generate-student-password').addEventListener('click', () => { $('new-student-password').value = generatePin(8); });
 
   // ============================================================
   // ADMIN PANELİ
@@ -362,7 +524,10 @@
             <label>Ad Soyad</label>
             <input type="text" class="edit-name-input" value="${escapeHtml(t.name)}">
             <label>PIN</label>
-            <input type="text" class="edit-pin-input pin-input" value="${escapeHtml(t.pin)}">
+            <div class="input-with-button">
+              <input type="text" class="edit-pin-input pin-input" value="${escapeHtml(t.pin)}">
+              <button type="button" class="btn-inline btn-generate-pin-edit">Otomatik Ata</button>
+            </div>
             <div class="error-text edit-error"></div>
             <div class="teacher-actions">
               <button type="button" class="btn-small btn-save-teacher">Kaydet</button>
@@ -393,6 +558,9 @@
     listEl.querySelectorAll('.btn-cancel-edit').forEach(b => b.addEventListener('click', () => {
       editingTeacherId = null;
       renderTeacherList();
+    }));
+    listEl.querySelectorAll('.btn-generate-pin-edit').forEach(b => b.addEventListener('click', () => {
+      b.closest('.teacher-card').querySelector('.edit-pin-input').value = generatePin(6);
     }));
     listEl.querySelectorAll('.btn-save-teacher').forEach(b => b.addEventListener('click', async () => {
       const card = b.closest('.teacher-card');
@@ -446,6 +614,312 @@
   $('admin-logout').addEventListener('click', () => {
     session = null;
     showScreen('screen-role');
+  });
+
+  // ============================================================
+  // ÖĞRETMEN PANELİ
+  // ============================================================
+  const SUBJECTS = ['Türkçe', 'Matematik', 'Fen Bilimleri', 'T.C. İnkılap Tarihi', 'Din Kültürü', 'İngilizce'];
+  let studentsData = [];
+  let currentStudent = null;
+
+  async function loadTeacherDashboard(){
+    $('teacher-name').textContent = 'Merhaba, ' + session.name;
+    showScreen('screen-teacher-dashboard');
+    await refreshStudents();
+  }
+
+  function entryTotal(entry){
+    if (!entry || !entry.subjects) return 0;
+    return Object.values(entry.subjects).reduce((a,b) => a + (Number(b)||0), 0);
+  }
+
+  function relDateLabel(dateStr){
+    if (!dateStr) return 'Hiç giriş yapılmadı';
+    const today = todayStr();
+    if (dateStr === today) return 'Bugün';
+    const diffDays = Math.round((new Date(today) - new Date(dateStr)) / 86400000);
+    if (diffDays === 1) return 'Dün';
+    if (diffDays > 1) return diffDays + ' gün önce';
+    return fmtDate(dateStr);
+  }
+
+  async function refreshStudents(){
+    const listEl = $('student-list');
+    const { data, error } = await sb.rpc('teacher_get_data', { p_teacher_id: session.id, p_pin: session.secret });
+    if (error || !data || data.error) {
+      listEl.innerHTML = '<p class="error-text">Öğrenci listesi yüklenemedi. Sayfayı yenile.</p>';
+      return;
+    }
+    studentsData = data.students || [];
+    renderMissingBanner();
+    renderStudentList();
+  }
+
+  function renderMissingBanner(){
+    const today = todayStr();
+    const missing = studentsData.filter(s => s.last_entry_date !== today);
+    const bannerEl = $('missing-today-banner');
+    if (missing.length === 0) { bannerEl.innerHTML = ''; return; }
+    bannerEl.innerHTML = '<div class="banner-warning"><strong>' + missing.length + ' öğrenci</strong> bugün henüz soru girmedi: ' +
+      missing.map(s => escapeHtml(s.name)).join(', ') + '</div>';
+  }
+
+  function renderStudentList(){
+    const listEl = $('student-list');
+    if (studentsData.length === 0) {
+      listEl.innerHTML = '<p class="empty-state">Henüz öğrenci eklenmedi. Yukarıdan ilk öğrenciyi ekleyebilirsin.</p>';
+      return;
+    }
+    const today = todayStr();
+    listEl.innerHTML = studentsData.map(s => {
+      const isToday = s.last_entry_date === today;
+      return `
+        <div class="card student-card" data-id="${s.id}">
+          <div class="teacher-card-head">
+            <div>
+              <h3>${escapeHtml(s.name)}</h3>
+              <div class="hint-text">${escapeHtml(s.username)}${s.daily_target != null ? ' · Hedef: ' + s.daily_target : ''}</div>
+            </div>
+            <span class="status-pill ${isToday ? 'status-ok' : 'status-warn'}">${relDateLabel(s.last_entry_date)}</span>
+          </div>
+          <div class="teacher-actions">
+            <button type="button" class="btn-small btn-edit-teacher btn-open-detail">Detay</button>
+            <button type="button" class="btn-small btn-delete-teacher btn-delete-student">Sil</button>
+          </div>
+        </div>`;
+    }).join('');
+
+    listEl.querySelectorAll('.btn-open-detail').forEach(b => b.addEventListener('click', () => {
+      openStudentDetail(b.closest('.student-card').dataset.id);
+    }));
+    listEl.querySelectorAll('.btn-delete-student').forEach(b => b.addEventListener('click', async () => {
+      const id = b.closest('.student-card').dataset.id;
+      const s = studentsData.find(x => x.id === id);
+      if (!confirm(s.name + ' adlı öğrenciyi silmek istediğine emin misin? Tüm kayıtları da silinecek.')) return;
+      b.disabled = true; b.textContent = 'Siliniyor…';
+      const { data, error } = await sb.rpc('teacher_delete_student', { p_teacher_id: session.id, p_pin: session.secret, p_student_id: id });
+      if (error || !data || data.error) { alert('Silinemedi, tekrar dene.'); b.disabled = false; b.textContent = 'Sil'; return; }
+      await refreshStudents();
+    }));
+  }
+
+  $('form-add-student').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = $('new-student-name').value.trim();
+    const username = $('new-student-username').value.trim();
+    const password = $('new-student-password').value.trim();
+    const targetRaw = $('new-student-target').value;
+    const target = targetRaw === '' ? null : parseInt(targetRaw, 10);
+    const errEl = $('add-student-error');
+    const btn = e.target.querySelector('button[type=submit]');
+    errEl.textContent = '';
+    setLoading(btn, true, 'Ekle');
+    const { data, error } = await sb.rpc('teacher_add_student', {
+      p_teacher_id: session.id, p_pin: session.secret, p_name: name,
+      p_username: username, p_password: password, p_daily_target: target
+    });
+    setLoading(btn, false, 'Ekle');
+    if (error || !data || data.error) {
+      errEl.textContent = data && data.error === 'username_taken' ? 'Bu kullanıcı adı zaten alınmış.' : 'Eklenemedi, tekrar dene.';
+      return;
+    }
+    e.target.reset();
+    await refreshStudents();
+  });
+
+  $('teacher-logout').addEventListener('click', () => {
+    localStorage.removeItem(LS_TEACHER);
+    session = null;
+    showScreen('screen-role');
+  });
+
+  // ============================================================
+  // ÖĞRENCİ DETAY (öğretmen görünümü)
+  // ============================================================
+  function weekRange(offsetWeeks){
+    const now = new Date();
+    const day = (now.getDay() + 6) % 7; // 0=Pazartesi
+    const monday = new Date(now); monday.setDate(now.getDate() - day + offsetWeeks*7); monday.setHours(0,0,0,0);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate()+6); sunday.setHours(23,59,59,999);
+    return [monday, sunday];
+  }
+  function inRange(dateStr, start, end){
+    const d = new Date(dateStr + 'T12:00:00');
+    return d >= start && d <= end;
+  }
+  function sumEntries(entries, predicate){
+    return entries.filter(e => predicate(e.date)).reduce((sum,e) => sum + entryTotal(e), 0);
+  }
+
+  function openStudentDetail(id){
+    currentStudent = studentsData.find(s => s.id === id);
+    if (!currentStudent) return;
+    $('detail-student-name').textContent = currentStudent.name;
+    $('detail-last-entry').textContent = relDateLabel(currentStudent.last_entry_date);
+    $('detail-username').value = currentStudent.username;
+    $('detail-password').value = currentStudent.password;
+    $('detail-target').value = currentStudent.daily_target != null ? currentStudent.daily_target : '';
+    $('detail-weekly-plan').value = currentStudent.weekly_plan || '';
+    $('detail-guidance-note').value = currentStudent.guidance_note || '';
+    ['detail-credentials-error','detail-target-error','detail-entry-error'].forEach(id2 => { $(id2).textContent=''; $(id2).style.color=''; });
+    renderDetailStats();
+    renderEntryForm(todayStr());
+    showScreen('screen-student-detail');
+  }
+
+  $('detail-back').addEventListener('click', () => showScreen('screen-teacher-dashboard'));
+
+  function renderDetailStats(){
+    const entries = currentStudent.entries || [];
+    const today = todayStr();
+    const [wStart, wEnd] = weekRange(0);
+    const [lwStart, lwEnd] = weekRange(-1);
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23,59,59);
+
+    const stats = [
+      ['Bugün', sumEntries(entries, d => d === today)],
+      ['Bu Hafta', sumEntries(entries, d => inRange(d, wStart, wEnd))],
+      ['Geçen Hafta', sumEntries(entries, d => inRange(d, lwStart, lwEnd))],
+      ['Bu Ay', sumEntries(entries, d => inRange(d, monthStart, monthEnd))],
+      ['Geçen Ay', sumEntries(entries, d => inRange(d, lastMonthStart, lastMonthEnd))],
+      ['Tüm Zamanlar', entries.reduce((sum,e) => sum + entryTotal(e), 0)]
+    ];
+    $('detail-stat-grid').innerHTML = stats.map(([label,val]) =>
+      `<div class="stat-box"><div class="stat-value mono">${val}</div><div class="stat-label">${label}</div></div>`
+    ).join('');
+
+    const weekBySubject = {}, totalBySubject = {};
+    SUBJECTS.forEach(s => { weekBySubject[s]=0; totalBySubject[s]=0; });
+    entries.forEach(e => {
+      const inWeek = inRange(e.date, wStart, wEnd);
+      Object.entries(e.subjects || {}).forEach(([subj, count]) => {
+        const c = Number(count) || 0;
+        if (!(subj in totalBySubject)) { totalBySubject[subj] = 0; weekBySubject[subj] = 0; }
+        totalBySubject[subj] += c;
+        if (inWeek) weekBySubject[subj] += c;
+      });
+    });
+    const grandTotal = Object.values(totalBySubject).reduce((a,b)=>a+b,0);
+    const rows = Object.keys(totalBySubject).map(subj => {
+      const pct = grandTotal > 0 ? Math.round((totalBySubject[subj] / grandTotal) * 100) : 0;
+      return `<tr><td>${escapeHtml(subj)}</td><td class="mono">${weekBySubject[subj]}</td><td class="mono">${totalBySubject[subj]}</td><td class="mono">%${pct}</td></tr>`;
+    }).join('');
+    $('detail-subject-table').innerHTML = `<table class="subject-table"><thead><tr><th>Ders</th><th>Hafta</th><th>Toplam</th><th>Yüzde</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  function renderEntryForm(dateStr){
+    $('detail-entry-date').value = dateStr;
+    $('detail-entry-date').max = todayStr();
+    const entry = (currentStudent.entries || []).find(e => e.date === dateStr);
+    const subjects = entry ? entry.subjects : {};
+    $('detail-entry-subjects').innerHTML = SUBJECTS.map(subj => `
+      <div class="subject-field">
+        <label>${escapeHtml(subj)}</label>
+        <input type="number" min="0" step="1" class="entry-subject-input" data-subject="${escapeHtml(subj)}" value="${subjects[subj] || 0}">
+      </div>`).join('');
+  }
+
+  $('detail-entry-date').addEventListener('change', (e) => renderEntryForm(e.target.value));
+
+  $('btn-save-entry').addEventListener('click', async () => {
+    const date = $('detail-entry-date').value;
+    const errEl = $('detail-entry-error');
+    errEl.style.color = ''; errEl.textContent = '';
+    if (!date) { errEl.textContent = 'Tarih seç.'; return; }
+    const subjects = {};
+    document.querySelectorAll('.entry-subject-input').forEach(inp => {
+      const v = parseInt(inp.value, 10);
+      if (v > 0) subjects[inp.dataset.subject] = v;
+    });
+    const btn = $('btn-save-entry');
+    setLoading(btn, true, 'Kaydet');
+    const { data, error } = await sb.rpc('teacher_save_entry', {
+      p_teacher_id: session.id, p_pin: session.secret, p_student_id: currentStudent.id, p_date: date, p_subjects: subjects
+    });
+    setLoading(btn, false, 'Kaydet');
+    if (error || !data || data.error) { errEl.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
+    const idx = currentStudent.entries.findIndex(e => e.date === date);
+    if (idx >= 0) currentStudent.entries[idx].subjects = subjects;
+    else currentStudent.entries.push({ date, subjects });
+    if (!currentStudent.last_entry_date || date > currentStudent.last_entry_date) currentStudent.last_entry_date = date;
+    renderDetailStats();
+    $('detail-last-entry').textContent = relDateLabel(currentStudent.last_entry_date);
+    errEl.style.color = 'var(--green)'; errEl.textContent = 'Kaydedildi.';
+    setTimeout(() => { errEl.textContent=''; errEl.style.color=''; }, 2000);
+  });
+
+  $('btn-save-credentials').addEventListener('click', async () => {
+    const username = $('detail-username').value.trim();
+    const password = $('detail-password').value.trim();
+    const errEl = $('detail-credentials-error');
+    errEl.textContent = '';
+    const btn = $('btn-save-credentials');
+    setLoading(btn, true, 'Kaydet');
+    const { data, error } = await sb.rpc('teacher_update_credentials', {
+      p_teacher_id: session.id, p_pin: session.secret, p_student_id: currentStudent.id, p_username: username, p_password: password
+    });
+    setLoading(btn, false, 'Kaydet');
+    if (error || !data || data.error) {
+      errEl.textContent = data && data.error === 'username_taken' ? 'Bu kullanıcı adı başka bir öğrencide kayıtlı.' : 'Kaydedilemedi.';
+      return;
+    }
+    currentStudent.username = username; currentStudent.password = password;
+    const s = studentsData.find(x => x.id === currentStudent.id);
+    if (s) { s.username = username; s.password = password; }
+  });
+
+  $('btn-save-target').addEventListener('click', async () => {
+    const raw = $('detail-target').value;
+    const target = raw === '' ? null : parseInt(raw, 10);
+    const errEl = $('detail-target-error');
+    errEl.textContent = '';
+    const btn = $('btn-save-target');
+    setLoading(btn, true, 'Kaydet');
+    const { data, error } = await sb.rpc('teacher_update_target', {
+      p_teacher_id: session.id, p_pin: session.secret, p_student_id: currentStudent.id, p_daily_target: target
+    });
+    setLoading(btn, false, 'Kaydet');
+    if (error || !data || data.error) { errEl.textContent = 'Kaydedilemedi.'; return; }
+    currentStudent.daily_target = target;
+    const s = studentsData.find(x => x.id === currentStudent.id);
+    if (s) s.daily_target = target;
+  });
+
+  $('btn-save-plan').addEventListener('click', async () => {
+    const content = $('detail-weekly-plan').value;
+    const btn = $('btn-save-plan');
+    setLoading(btn, true, 'Kaydet');
+    const { data, error } = await sb.rpc('teacher_save_weekly_plan', {
+      p_teacher_id: session.id, p_pin: session.secret, p_student_id: currentStudent.id, p_content: content
+    });
+    setLoading(btn, false, 'Kaydet');
+    if (!error && data && !data.error) currentStudent.weekly_plan = content;
+  });
+
+  $('btn-save-guidance').addEventListener('click', async () => {
+    const content = $('detail-guidance-note').value;
+    const btn = $('btn-save-guidance');
+    setLoading(btn, true, 'Kaydet');
+    const { data, error } = await sb.rpc('teacher_save_guidance_note', {
+      p_teacher_id: session.id, p_pin: session.secret, p_student_id: currentStudent.id, p_content: content
+    });
+    setLoading(btn, false, 'Kaydet');
+    if (!error && data && !data.error) currentStudent.guidance_note = content;
+  });
+
+  $('btn-delete-student').addEventListener('click', async () => {
+    if (!confirm(currentStudent.name + ' adlı öğrenciyi silmek istediğine emin misin? Tüm kayıtları da silinecek.')) return;
+    const btn = $('btn-delete-student');
+    setLoading(btn, true, 'Öğrenciyi Sil');
+    const { data, error } = await sb.rpc('teacher_delete_student', { p_teacher_id: session.id, p_pin: session.secret, p_student_id: currentStudent.id });
+    if (error || !data || data.error) { alert('Silinemedi, tekrar dene.'); setLoading(btn, false, 'Öğrenciyi Sil'); return; }
+    showScreen('screen-teacher-dashboard');
+    await refreshStudents();
   });
 
   // --- Admin girişi ---
