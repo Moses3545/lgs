@@ -5,13 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Soru Takip</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstat<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Soru Takip</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -212,6 +205,20 @@
     background:var(--cream); font-style:italic; font-size:13.5px; line-height:1.6; color:var(--ink);
   }
   .quote-author{ display:block; margin-top:6px; font-style:normal; font-weight:600; font-size:12px; color:var(--muted); text-align:right; }
+
+  .deneme-item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 0; border-bottom:1px solid rgba(42,42,36,.08); font-size:13.5px;
+  }
+  .deneme-item:first-child{ padding-top:0; }
+  .deneme-item:last-child{ border-bottom:none; }
+  .deneme-item-name{ font-weight:600; }
+  .deneme-item-date{ color:var(--muted); font-size:12px; }
+  .deneme-item-score{ font-family:'IBM Plex Mono',monospace; font-weight:600; margin:0 10px; }
+  .btn-delete-deneme{
+    background:transparent; border:none; color:var(--red); font-size:12px; font-weight:600;
+    cursor:pointer; padding:4px 6px; flex-shrink:0;
+  }
 </style>
 </head>
 <body>
@@ -336,7 +343,12 @@
       <button type="button" class="btn-icon" id="teacher-logout">Çıkış</button>
     </div>
 
+    <button type="button" class="btn btn-primary" id="btn-export-all" style="margin-top:0; margin-bottom:16px;">Tüm Öğrencileri Excel'e Aktar</button>
+
     <div id="missing-today-banner"></div>
+
+    <h3 class="section-label" style="margin-top:0;">Öğrenciler</h3>
+    <div id="student-list"><p class="empty-state">Yükleniyor…</p></div>
 
     <div class="card">
       <h3>Yeni Öğrenci Ekle</h3>
@@ -356,9 +368,6 @@
         <button type="submit" class="btn btn-primary">Ekle</button>
       </form>
     </div>
-
-    <h3 class="section-label">Öğrenciler</h3>
-    <div id="student-list"><p class="empty-state">Yükleniyor…</p></div>
   </section>
 
   <!-- ÖĞRENCİ DETAY (öğretmen görünümü) -->
@@ -374,6 +383,7 @@
     <div class="card">
       <div class="eyebrow">Son Giriş</div>
       <p id="detail-last-entry" class="mono" style="font-size:16px; margin:0;"></p>
+      <button type="button" class="btn btn-primary" id="btn-export-student">Excel Raporu İndir</button>
     </div>
 
     <div class="card">
@@ -387,9 +397,25 @@
     </div>
 
     <div class="card">
-      <h3>Soru Girişi Ekle / Düzenle</h3>
+      <h3>Denemeler</h3>
+      <label for="detail-deneme-name">Deneme Adı</label>
+      <input type="text" id="detail-deneme-name" placeholder="örn. 3. Deneme">
+      <label for="detail-deneme-score">Puan</label>
+      <input type="number" id="detail-deneme-score" min="0" step="0.01">
+      <label for="detail-deneme-date">Tarih</label>
+      <input type="date" id="detail-deneme-date">
+      <div class="error-text" id="detail-deneme-error"></div>
+      <button type="button" class="btn btn-primary" id="btn-add-deneme">Ekle</button>
+      <div class="chart-wrap" id="detail-deneme-chart-wrap" style="display:none;"><canvas id="detail-deneme-chart"></canvas></div>
+      <div id="detail-deneme-list"></div>
+    </div>
+
+    <div class="card">
+      <h3>Boş Güne Soru Girişi</h3>
+      <p class="hint-text" style="margin-top:-8px;">Öğrenci girmeyi unutursa, sadece kaydı olmayan bir gün için sen girebilirsin. Zaten girilmiş bir günü değiştiremezsin.</p>
       <label for="detail-entry-date">Tarih</label>
       <input type="date" id="detail-entry-date">
+      <p class="hint-text" id="detail-entry-locked-note" style="color:var(--red);"></p>
       <div class="entry-subjects-grid" id="detail-entry-subjects"></div>
       <div class="error-text" id="detail-entry-error"></div>
       <button type="button" class="btn btn-primary" id="btn-save-entry">Kaydet</button>
@@ -467,6 +493,20 @@
     <div class="card">
       <h3>Son 7 Gün</h3>
       <div class="chart-wrap"><canvas id="student-week-chart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h3>Denemelerim</h3>
+      <label for="student-deneme-name">Deneme Adı</label>
+      <input type="text" id="student-deneme-name" placeholder="örn. 3. Deneme">
+      <label for="student-deneme-score">Puan</label>
+      <input type="number" id="student-deneme-score" min="0" step="0.01">
+      <label for="student-deneme-date">Tarih</label>
+      <input type="date" id="student-deneme-date">
+      <div class="error-text" id="student-deneme-error"></div>
+      <button type="button" class="btn btn-primary" id="btn-student-add-deneme">Ekle</button>
+      <div class="chart-wrap" id="student-deneme-chart-wrap" style="display:none;"><canvas id="student-deneme-chart"></canvas></div>
+      <div id="student-deneme-list"></div>
     </div>
 
     <div class="card">
@@ -789,6 +829,64 @@
     await refreshStudents();
   });
 
+  // ============================================================
+  // EXCEL DIŞA AKTARMA
+  // ============================================================
+  function loadScriptOnce(src){
+    return new Promise((resolve, reject) => {
+      if (document.querySelector('script[data-loaded="' + src + '"]')) { resolve(); return; }
+      const s = document.createElement('script');
+      s.src = src;
+      s.setAttribute('data-loaded', src);
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Kütüphane yüklenemedi: ' + src));
+      document.head.appendChild(s);
+    });
+  }
+  function ensureSheetJS(){ return loadScriptOnce('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'); }
+  function ensureExcelJS(){ return loadScriptOnce('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'); }
+
+  $('btn-export-all').addEventListener('click', async () => {
+    const btn = $('btn-export-all');
+    const label = "Tüm Öğrencileri Excel'e Aktar";
+    setLoading(btn, true, label);
+    try {
+      await ensureSheetJS();
+      const wb = XLSX.utils.book_new();
+
+      const studentsRows = studentsData.map(s => ({
+        'Ad Soyad': s.name, 'Kullanıcı Adı': s.username, 'Şifre': s.password,
+        'Günlük Hedef': s.daily_target != null ? s.daily_target : '',
+        'Son Giriş': s.last_entry_date || '(hiç girmedi)',
+        'Eklenme Tarihi': s.created_at ? s.created_at.slice(0,10) : ''
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(studentsRows), 'Öğrenciler');
+
+      const entryRows = [];
+      studentsData.forEach(s => {
+        (s.entries || []).forEach(e => {
+          Object.entries(e.subjects || {}).forEach(([subj, count]) => {
+            entryRows.push({ 'Öğrenci': s.name, 'Tarih': e.date, 'Ders': subj, 'Soru Sayısı': count });
+          });
+        });
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(entryRows), 'Günlük Sorular');
+
+      const denemeRows = [];
+      studentsData.forEach(s => {
+        (s.denemeler || []).forEach(d => {
+          denemeRows.push({ 'Öğrenci': s.name, 'Deneme': d.name, 'Tarih': d.date, 'Puan': d.score });
+        });
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(denemeRows), 'Denemeler');
+
+      XLSX.writeFile(wb, 'ogrenciler-' + todayStr() + '.xlsx');
+    } catch (e) {
+      alert('Excel oluşturulamadı, internet bağlantını kontrol edip tekrar dene.');
+    }
+    setLoading(btn, false, label);
+  });
+
   $('teacher-logout').addEventListener('click', () => {
     localStorage.removeItem(LS_TEACHER);
     session = null;
@@ -813,6 +911,8 @@
     return entries.filter(e => predicate(e.date)).reduce((sum,e) => sum + entryTotal(e), 0);
   }
 
+  let detailDenemeChart = null;
+
   function openStudentDetail(id){
     currentStudent = studentsData.find(s => s.id === id);
     if (!currentStudent) return;
@@ -823,13 +923,180 @@
     $('detail-target').value = currentStudent.daily_target != null ? currentStudent.daily_target : '';
     $('detail-weekly-plan').value = currentStudent.weekly_plan || '';
     $('detail-guidance-note').value = currentStudent.guidance_note || '';
-    ['detail-credentials-error','detail-target-error','detail-entry-error'].forEach(id2 => { $(id2).textContent=''; $(id2).style.color=''; });
+    ['detail-credentials-error','detail-target-error','detail-entry-error','detail-deneme-error'].forEach(id2 => { $(id2).textContent=''; $(id2).style.color=''; });
+    $('detail-deneme-name').value = ''; $('detail-deneme-score').value = '';
+    $('detail-deneme-date').value = todayStr(); $('detail-deneme-date').max = todayStr();
     renderDetailStats();
     renderEntryForm(todayStr());
+    renderDetailDenemeler();
     showScreen('screen-student-detail');
   }
 
   $('detail-back').addEventListener('click', () => showScreen('screen-teacher-dashboard'));
+
+  function renderDetailDenemeler(){
+    const denemeler = (currentStudent.denemeler || []).slice().sort((a,b) => a.date.localeCompare(b.date));
+    const listEl = $('detail-deneme-list');
+    if (denemeler.length === 0) {
+      listEl.innerHTML = '<p class="empty-state">Henüz deneme kaydı yok.</p>';
+    } else {
+      listEl.innerHTML = denemeler.slice().reverse().map(d => `
+        <div class="deneme-item" data-id="${d.id}">
+          <div><div class="deneme-item-name">${escapeHtml(d.name)}</div><div class="deneme-item-date">${fmtDate(d.date)}</div></div>
+          <div style="display:flex; align-items:center;">
+            <span class="deneme-item-score mono">${d.score}</span>
+            <button type="button" class="btn-delete-deneme">Sil</button>
+          </div>
+        </div>`).join('');
+      listEl.querySelectorAll('.btn-delete-deneme').forEach(b => b.addEventListener('click', async () => {
+        const id = b.closest('.deneme-item').dataset.id;
+        if (!confirm('Bu deneme kaydını silmek istediğine emin misin?')) return;
+        const { data, error } = await sb.rpc('teacher_delete_deneme', { p_teacher_id: session.id, p_password: session.secret, p_deneme_id: id });
+        if (error || !data || data.error) { alert('Silinemedi, tekrar dene.'); return; }
+        currentStudent.denemeler = currentStudent.denemeler.filter(x => x.id !== id);
+        renderDetailDenemeler();
+      }));
+    }
+
+    const wrapEl = $('detail-deneme-chart-wrap');
+    if (denemeler.length === 0) { wrapEl.style.display = 'none'; return; }
+    wrapEl.style.display = '';
+    const labels = denemeler.map(d => fmtDate(d.date));
+    const values = denemeler.map(d => Number(d.score));
+    if (detailDenemeChart) detailDenemeChart.destroy();
+    detailDenemeChart = new Chart(document.getElementById('detail-deneme-chart'), {
+      type: 'line',
+      data: { labels, datasets: [{ label: 'Puan', data: values, borderColor: '#B8902E', backgroundColor: 'rgba(184,144,46,.12)', tension: .3, fill: true, pointRadius: 3 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: false } }
+      }
+    });
+  }
+
+  $('btn-add-deneme').addEventListener('click', async () => {
+    const name = $('detail-deneme-name').value.trim();
+    const score = parseFloat($('detail-deneme-score').value);
+    const date = $('detail-deneme-date').value;
+    const errEl = $('detail-deneme-error');
+    errEl.textContent = '';
+    if (!name) { errEl.textContent = 'Deneme adı gir.'; return; }
+    if (isNaN(score)) { errEl.textContent = 'Geçerli bir puan gir.'; return; }
+    if (!date) { errEl.textContent = 'Tarih seç.'; return; }
+    const btn = $('btn-add-deneme');
+    setLoading(btn, true, 'Ekle');
+    const { data, error } = await sb.rpc('teacher_add_deneme', {
+      p_teacher_id: session.id, p_password: session.secret, p_student_id: currentStudent.id,
+      p_name: name, p_score: score, p_date: date
+    });
+    setLoading(btn, false, 'Ekle');
+    if (error || !data || data.error) { errEl.textContent = 'Eklenemedi, tekrar dene.'; return; }
+    currentStudent.denemeler.push({ id: data.id, name, score, date });
+    $('detail-deneme-name').value = ''; $('detail-deneme-score').value = '';
+    renderDetailDenemeler();
+  });
+
+  $('btn-export-student').addEventListener('click', async () => {
+    const btn = $('btn-export-student');
+    const label = 'Excel Raporu İndir';
+    setLoading(btn, true, label);
+    try {
+      await ensureExcelJS();
+      const wb = new ExcelJS.Workbook();
+      const entries = currentStudent.entries || [];
+      const today = todayStr();
+      const [wStart, wEnd] = weekRange(0);
+      const [lwStart, lwEnd] = weekRange(-1);
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59);
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth()-1, 1);
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23,59,59);
+
+      const wsSummary = wb.addWorksheet('Özet');
+      wsSummary.columns = [{ header: 'Alan', key: 'k', width: 22 }, { header: 'Değer', key: 'v', width: 22 }];
+      wsSummary.addRows([
+        { k: 'Ad Soyad', v: currentStudent.name },
+        { k: 'Kullanıcı Adı', v: currentStudent.username },
+        { k: 'Günlük Hedef', v: currentStudent.daily_target != null ? currentStudent.daily_target : '-' },
+        { k: 'Bugün', v: sumEntries(entries, d => d === today) },
+        { k: 'Bu Hafta', v: sumEntries(entries, d => inRange(d, wStart, wEnd)) },
+        { k: 'Geçen Hafta', v: sumEntries(entries, d => inRange(d, lwStart, lwEnd)) },
+        { k: 'Bu Ay', v: sumEntries(entries, d => inRange(d, monthStart, monthEnd)) },
+        { k: 'Geçen Ay', v: sumEntries(entries, d => inRange(d, lastMonthStart, lastMonthEnd)) },
+        { k: 'Tüm Zamanlar', v: entries.reduce((sum,e) => sum + entryTotal(e), 0) }
+      ]);
+      wsSummary.getRow(1).font = { bold: true };
+
+      const wsCharts = wb.addWorksheet('Grafikler');
+      let rowCursor = 1;
+      const denemeCanvas = document.getElementById('detail-deneme-chart');
+      if (denemeCanvas && currentStudent.denemeler && currentStudent.denemeler.length > 0) {
+        wsCharts.getCell('A' + rowCursor).value = 'Deneme Puanları';
+        wsCharts.getCell('A' + rowCursor).font = { bold: true };
+        rowCursor += 1;
+        const imgId = wb.addImage({ base64: denemeCanvas.toDataURL('image/png'), extension: 'png' });
+        wsCharts.addImage(imgId, { tl: { col: 0, row: rowCursor }, ext: { width: 520, height: 260 } });
+      } else {
+        wsCharts.getCell('A1').value = 'Henüz deneme kaydı yok, grafik oluşturulamadı.';
+      }
+
+      const wsSubjects = wb.addWorksheet('Derslere Göre');
+      wsSubjects.columns = [
+        { header: 'Ders', key: 'subj', width: 24 }, { header: 'Bu Hafta', key: 'week', width: 12 },
+        { header: 'Toplam', key: 'total', width: 12 }, { header: 'Yüzde', key: 'pct', width: 10 }
+      ];
+      wsSubjects.getRow(1).font = { bold: true };
+      const weekBySubject = {}, totalBySubject = {};
+      SUBJECTS.forEach(s => { weekBySubject[s]=0; totalBySubject[s]=0; });
+      entries.forEach(e => {
+        const inWeek = inRange(e.date, wStart, wEnd);
+        Object.entries(e.subjects || {}).forEach(([subj, count]) => {
+          const c = Number(count) || 0;
+          if (!(subj in totalBySubject)) { totalBySubject[subj]=0; weekBySubject[subj]=0; }
+          totalBySubject[subj] += c;
+          if (inWeek) weekBySubject[subj] += c;
+        });
+      });
+      const grandTotal = Object.values(totalBySubject).reduce((a,b)=>a+b,0);
+      Object.keys(totalBySubject).forEach(subj => {
+        const pct = grandTotal > 0 ? Math.round((totalBySubject[subj]/grandTotal)*100) : 0;
+        wsSubjects.addRow({ subj, week: weekBySubject[subj], total: totalBySubject[subj], pct: '%' + pct });
+      });
+
+      const wsEntries = wb.addWorksheet('Günlük Sorular');
+      wsEntries.columns = [
+        { header: 'Tarih', key: 'date', width: 14 }, { header: 'Ders', key: 'subj', width: 24 }, { header: 'Soru Sayısı', key: 'count', width: 12 }
+      ];
+      wsEntries.getRow(1).font = { bold: true };
+      entries.slice().sort((a,b) => a.date.localeCompare(b.date)).forEach(e => {
+        Object.entries(e.subjects || {}).forEach(([subj, count]) => {
+          wsEntries.addRow({ date: e.date, subj, count });
+        });
+      });
+
+      const wsDenemeler = wb.addWorksheet('Denemeler');
+      wsDenemeler.columns = [
+        { header: 'Deneme', key: 'name', width: 24 }, { header: 'Tarih', key: 'date', width: 14 }, { header: 'Puan', key: 'score', width: 10 }
+      ];
+      wsDenemeler.getRow(1).font = { bold: true };
+      (currentStudent.denemeler || []).slice().sort((a,b) => a.date.localeCompare(b.date)).forEach(d => {
+        wsDenemeler.addRow({ name: d.name, date: d.date, score: d.score });
+      });
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = currentStudent.name.replace(/\s+/g, '-') + '-rapor.xlsx';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Excel oluşturulamadı, internet bağlantını kontrol edip tekrar dene.');
+    }
+    setLoading(btn, false, label);
+  });
 
   function renderDetailStats(){
     const entries = currentStudent.entries || [];
@@ -878,11 +1145,14 @@
     $('detail-entry-date').max = todayStr();
     const entry = (currentStudent.entries || []).find(e => e.date === dateStr);
     const subjects = entry ? entry.subjects : {};
+    const locked = !!entry;
     $('detail-entry-subjects').innerHTML = SUBJECTS.map(subj => `
       <div class="subject-field">
         <label>${escapeHtml(subj)}</label>
-        <input type="number" min="0" step="1" class="entry-subject-input" data-subject="${escapeHtml(subj)}" value="${subjects[subj] || 0}">
+        <input type="number" min="0" step="1" class="entry-subject-input" data-subject="${escapeHtml(subj)}" value="${subjects[subj] || 0}" ${locked ? 'disabled' : ''}>
       </div>`).join('');
+    $('btn-save-entry').style.display = locked ? 'none' : '';
+    $('detail-entry-locked-note').textContent = locked ? 'Bu gün için zaten bir kayıt var — değiştirilemez. Başka bir (boş) gün seç.' : '';
   }
 
   $('detail-entry-date').addEventListener('change', (e) => renderEntryForm(e.target.value));
@@ -1064,6 +1334,8 @@
     return new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
   }
 
+  let studentDenemeChart = null;
+
   async function loadStudentDashboard(){
     $('student-name').textContent = 'Merhaba, ' + session.name;
     $('student-today-date').textContent = todayLabel();
@@ -1078,9 +1350,74 @@
     studentSelf = data;
     renderStudentEntryForm();
     renderStudentStats();
+    $('student-deneme-name').value = ''; $('student-deneme-score').value = '';
+    $('student-deneme-date').value = todayStr(); $('student-deneme-date').max = todayStr();
+    renderStudentDenemeler();
     $('student-weekly-plan').textContent = (data.weekly_plan && data.weekly_plan.trim()) ? data.weekly_plan : 'Öğretmenin henüz bir plan yazmamış.';
     $('student-guidance-note').textContent = (data.guidance_note && data.guidance_note.trim()) ? data.guidance_note : 'Öğretmenin henüz bir not yazmamış.';
   }
+
+  function renderStudentDenemeler(){
+    const denemeler = (studentSelf.denemeler || []).slice().sort((a,b) => a.date.localeCompare(b.date));
+    const listEl = $('student-deneme-list');
+    if (denemeler.length === 0) {
+      listEl.innerHTML = '<p class="empty-state">Henüz deneme kaydın yok.</p>';
+    } else {
+      listEl.innerHTML = denemeler.slice().reverse().map(d => `
+        <div class="deneme-item" data-id="${d.id}">
+          <div><div class="deneme-item-name">${escapeHtml(d.name)}</div><div class="deneme-item-date">${fmtDate(d.date)}</div></div>
+          <div style="display:flex; align-items:center;">
+            <span class="deneme-item-score mono">${d.score}</span>
+            <button type="button" class="btn-delete-deneme">Sil</button>
+          </div>
+        </div>`).join('');
+      listEl.querySelectorAll('.btn-delete-deneme').forEach(b => b.addEventListener('click', async () => {
+        const id = b.closest('.deneme-item').dataset.id;
+        if (!confirm('Bu deneme kaydını silmek istediğine emin misin?')) return;
+        const { data, error } = await sb.rpc('student_delete_deneme', { p_student_id: session.id, p_password: session.secret, p_deneme_id: id });
+        if (error || !data || data.error) { alert('Silinemedi, tekrar dene.'); return; }
+        studentSelf.denemeler = studentSelf.denemeler.filter(x => x.id !== id);
+        renderStudentDenemeler();
+      }));
+    }
+
+    const wrapEl = $('student-deneme-chart-wrap');
+    if (denemeler.length === 0) { wrapEl.style.display = 'none'; return; }
+    wrapEl.style.display = '';
+    const labels = denemeler.map(d => fmtDate(d.date));
+    const values = denemeler.map(d => Number(d.score));
+    if (studentDenemeChart) studentDenemeChart.destroy();
+    studentDenemeChart = new Chart(document.getElementById('student-deneme-chart'), {
+      type: 'line',
+      data: { labels, datasets: [{ label: 'Puan', data: values, borderColor: '#B8902E', backgroundColor: 'rgba(184,144,46,.12)', tension: .3, fill: true, pointRadius: 3 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: false } }
+      }
+    });
+  }
+
+  $('btn-student-add-deneme').addEventListener('click', async () => {
+    const name = $('student-deneme-name').value.trim();
+    const score = parseFloat($('student-deneme-score').value);
+    const date = $('student-deneme-date').value;
+    const errEl = $('student-deneme-error');
+    errEl.textContent = '';
+    if (!name) { errEl.textContent = 'Deneme adı gir.'; return; }
+    if (isNaN(score)) { errEl.textContent = 'Geçerli bir puan gir.'; return; }
+    if (!date) { errEl.textContent = 'Tarih seç.'; return; }
+    const btn = $('btn-student-add-deneme');
+    setLoading(btn, true, 'Ekle');
+    const { data, error } = await sb.rpc('student_add_deneme', {
+      p_student_id: session.id, p_password: session.secret, p_name: name, p_score: score, p_date: date
+    });
+    setLoading(btn, false, 'Ekle');
+    if (error || !data || data.error) { errEl.textContent = 'Eklenemedi, tekrar dene.'; return; }
+    studentSelf.denemeler.push({ id: data.id, name, score, date });
+    $('student-deneme-name').value = ''; $('student-deneme-score').value = '';
+    renderStudentDenemeler();
+  });
 
   function renderStudentEntryForm(){
     const today = todayStr();
@@ -1210,1025 +1547,6 @@
       }
     });
   }
-
-  // --- Cihazda hatırlanan oturumu otomatik aç ---
-  (async function tryAutoLogin(){
-    const t = localStorage.getItem(LS_TEACHER);
-    if (t) {
-      try {
-        const { id, username, secret } = JSON.parse(t);
-        const { data } = await sb.rpc('teacher_login', { p_username: username, p_password: secret });
-        if (data && !data.error && data.id === id) {
-          session = { role: 'teacher', id, secret, name: data.name };
-          enterDashboard();
-          return;
-        }
-      } catch (e) {}
-      localStorage.removeItem(LS_TEACHER);
-    }
-    const s = localStorage.getItem(LS_STUDENT);
-    if (s) {
-      try {
-        const { id, secret } = JSON.parse(s);
-        const { data } = await sb.rpc('student_get_data', { p_student_id: id, p_password: secret });
-        if (data && !data.error) {
-          session = { role: 'student', id, secret, name: data.name };
-          enterDashboard();
-          return;
-        }
-      } catch (e) {}
-      localStorage.removeItem(LS_STUDENT);
-    }
-  })();
-</script>
-</body>
-</html>ic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<style>
-  :root{
-    --cream:#F7F2E6;
-    --grid-line:rgba(66,99,133,.16);
-    --ink:#2A2A24;
-    --red:#C0392B;
-    --green:#2F6F4F;
-    --gold:#B8902E;
-    --paper:#FFFDF8;
-    --muted:#8B8577;
-    --danger-bg:#FBEAE7;
-    --success-bg:#EAF3EC;
-    --radius:6px;
-    --shadow:0 1px 2px rgba(42,42,36,.06), 0 4px 14px rgba(42,42,36,.08);
-  }
-  *{ box-sizing:border-box; }
-  html,body{ margin:0; padding:0; }
-  body{
-    font-family:'Inter',sans-serif;
-    color:var(--ink);
-    background-color:var(--cream);
-    background-image:
-      linear-gradient(var(--grid-line) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-    background-size:22px 22px;
-    min-height:100vh;
-    -webkit-font-smoothing:antialiased;
-  }
-  h1,h2,h3{ font-family:'Fraunces', serif; margin:0 0 4px; letter-spacing:-0.01em; }
-  h1{ font-size:26px; font-weight:600; }
-  h2{ font-size:19px; font-weight:600; }
-  h3{ font-size:15px; font-weight:600; }
-  p{ margin:0 0 12px; line-height:1.55; }
-  .mono{ font-family:'IBM Plex Mono', monospace; font-variant-numeric:tabular-nums; }
-
-  .app{ max-width:440px; margin:0 auto; padding:28px 18px 60px; position:relative; }
-
-  .screen{ display:none; }
-  .screen.active{ display:block; animation:fadeIn .25s ease; }
-  @media (prefers-reduced-motion:reduce){ .screen.active{ animation:none; } }
-  @keyframes fadeIn{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
-
-  .card{
-    position:relative;
-    background:var(--paper);
-    border-radius:var(--radius);
-    box-shadow:var(--shadow);
-    padding:22px 20px 22px 32px;
-    margin-bottom:16px;
-  }
-  .card::before{
-    content:'';
-    position:absolute; left:20px; top:0; bottom:0; width:1.5px;
-    background:var(--red); opacity:.55;
-  }
-
-  .eyebrow{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px; letter-spacing:.08em; text-transform:uppercase;
-    color:var(--muted); margin-bottom:6px;
-  }
-
-  .role-grid{ display:flex; flex-direction:column; gap:12px; margin-top:20px; }
-  .role-btn{
-    display:flex; align-items:center; gap:14px;
-    width:100%;
-    background:var(--paper);
-    border:1px solid rgba(42,42,36,.08);
-    border-radius:var(--radius);
-    padding:16px 18px;
-    cursor:pointer; text-align:left;
-    font-family:'Inter',sans-serif; font-size:15px; font-weight:600; color:var(--ink);
-    box-shadow:var(--shadow);
-    transition:transform .12s ease;
-  }
-  .role-btn:hover{ transform:translateY(-1px); }
-  .role-btn:active{ transform:translateY(0); }
-  .role-btn .icon{
-    width:38px; height:38px; border-radius:50%; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-    font-size:16px; color:#fff;
-  }
-  .role-btn .sub{ display:block; font-weight:400; font-size:12.5px; color:var(--muted); margin-top:2px; }
-  .role-admin .icon{ background:var(--gold); }
-  .role-teacher .icon{ background:var(--green); }
-  .role-student .icon{ background:var(--red); }
-
-  label{ display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin:14px 0 6px; }
-  label:first-of-type{ margin-top:0; }
-  input[type=text], input[type=password], input[type=number], input[type=date], textarea{
-    width:100%; font-family:'Inter',sans-serif; font-size:15px;
-    padding:11px 12px; border:1px solid rgba(42,42,36,.16); border-radius:5px;
-    background:#fff; color:var(--ink);
-  }
-  .pin-input{ font-family:'IBM Plex Mono', monospace; letter-spacing:.12em; }
-  input:focus-visible, textarea:focus-visible, button:focus-visible{
-    outline:2px solid var(--green); outline-offset:2px;
-  }
-
-  .checkbox-row{ display:flex; align-items:center; gap:8px; margin:14px 0 4px; }
-  .checkbox-row input{ width:16px; height:16px; }
-  .checkbox-row label{ margin:0; font-weight:500; color:var(--ink); font-size:13.5px; }
-
-  .btn{
-    display:inline-flex; align-items:center; justify-content:center; width:100%;
-    font-family:'Inter',sans-serif; font-size:15px; font-weight:600;
-    padding:12px 16px; border:none; border-radius:5px; cursor:pointer;
-    margin-top:18px; transition:opacity .12s ease;
-  }
-  .btn:disabled{ opacity:.6; cursor:default; }
-  .btn-primary{ background:var(--green); color:#fff; }
-  .btn-primary:hover:not(:disabled){ opacity:.92; }
-  .btn-danger{ background:var(--red); color:#fff; }
-  .btn-ghost{ background:transparent; color:var(--muted); text-decoration:underline; width:auto; padding:6px 0; margin-top:12px; font-weight:500; font-size:13.5px; }
-
-  .error-text{ color:var(--red); font-size:13px; margin-top:10px; min-height:16px; }
-  .hint-text{ color:var(--muted); font-size:12.5px; margin-top:8px; }
-
-  .top-bar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
-  .badge{ font-family:'IBM Plex Mono',monospace; font-size:11px; padding:3px 9px; border-radius:20px; background:var(--success-bg); color:var(--green); font-weight:600; }
-
-  .btn-icon{
-    background:transparent; border:1px solid rgba(42,42,36,.14); border-radius:20px;
-    padding:6px 14px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
-    color:var(--red); cursor:pointer; flex-shrink:0;
-  }
-  .section-label{ margin:24px 0 10px; }
-  .teacher-card{ padding:18px 18px 18px 30px; }
-  .teacher-card-head{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
-  .teacher-pin-row{
-    display:flex; align-items:center; gap:8px; justify-content:space-between;
-    background:var(--cream); border-radius:5px; padding:8px 12px; margin:10px 0; font-size:14px;
-  }
-  .teacher-actions{ display:flex; gap:8px; margin-top:12px; }
-  .btn-small{
-    flex:1; font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
-    padding:9px 10px; border-radius:5px; border:1px solid rgba(42,42,36,.14);
-    background:#fff; color:var(--ink); cursor:pointer;
-  }
-  .btn-small:disabled{ opacity:.6; cursor:default; }
-  .btn-edit-teacher{ color:var(--green); border-color:rgba(47,111,79,.3); }
-  .btn-delete-teacher{ color:var(--red); border-color:rgba(192,57,43,.3); }
-  .btn-save-teacher{ background:var(--green); color:#fff; border-color:var(--green); }
-  .empty-state{ color:var(--muted); font-size:13.5px; padding:14px 0; }
-
-  .input-with-button{ display:flex; gap:8px; align-items:stretch; }
-  .input-with-button input{ flex:1; }
-  .btn-inline{
-    flex-shrink:0; white-space:nowrap;
-    font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600;
-    padding:0 12px; border-radius:5px; border:1px solid rgba(47,111,79,.35);
-    background:var(--success-bg); color:var(--green); cursor:pointer;
-  }
-
-  .banner-warning{
-    background:var(--danger-bg); border:1px solid rgba(192,57,43,.25); border-radius:var(--radius);
-    padding:12px 16px; font-size:13.5px; color:var(--ink); margin-bottom:16px; line-height:1.5;
-  }
-  .banner-warning strong{ color:var(--red); }
-
-  .student-card{ padding:18px 18px 18px 30px; }
-  .status-pill{
-    font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:600;
-    padding:4px 9px; border-radius:20px; white-space:nowrap; flex-shrink:0;
-  }
-  .status-ok{ background:var(--success-bg); color:var(--green); }
-  .status-warn{ background:var(--danger-bg); color:var(--red); }
-
-  .stat-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
-  .stat-box{ text-align:center; background:var(--cream); border-radius:5px; padding:12px 6px; }
-  .stat-value{ font-size:20px; font-weight:600; }
-  .stat-label{ font-size:10.5px; color:var(--muted); margin-top:3px; text-transform:uppercase; letter-spacing:.04em; }
-
-  .subject-table{ width:100%; border-collapse:collapse; font-size:13px; }
-  .subject-table th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase; color:var(--muted); padding:6px 4px; border-bottom:1px solid rgba(42,42,36,.1); }
-  .subject-table td{ padding:8px 4px; border-bottom:1px solid rgba(42,42,36,.06); }
-  .subject-table td:not(:first-child){ font-family:'IBM Plex Mono',monospace; }
-
-  .entry-subjects-grid{ display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
-  .entry-subjects-grid label{ margin:14px 0 6px; }
-  .subject-field:first-child label{ margin-top:0; }
-  .subject-field:nth-child(2) label{ margin-top:0; }
-</style>
-</head>
-<body>
-<main class="app">
-
-  <!-- ROL SEÇİMİ -->
-  <section id="screen-role" class="screen active">
-    <div class="eyebrow">Soru Takip</div>
-    <h1>Kim giriş yapıyor?</h1>
-    <p>Rolünü seç, devam edelim.</p>
-    <div class="role-grid">
-      <button type="button" class="role-btn role-admin" id="role-admin">
-        <span class="icon">A</span>
-        <span><span>Admin</span><span class="sub">Öğretmen hesaplarını yönet</span></span>
-      </button>
-      <button type="button" class="role-btn role-teacher" id="role-teacher">
-        <span class="icon">Ö</span>
-        <span><span>Öğretmen</span><span class="sub">Öğrencilerini takip et</span></span>
-      </button>
-      <button type="button" class="role-btn role-student" id="role-student">
-        <span class="icon">S</span>
-        <span><span>Öğrenci</span><span class="sub">Bugünün sorularını gir</span></span>
-      </button>
-    </div>
-  </section>
-
-  <!-- ADMIN GİRİŞ -->
-  <section id="screen-admin-login" class="screen">
-    <div class="card">
-      <div class="eyebrow">Admin Girişi</div>
-      <h2>PIN'ini gir</h2>
-      <form id="form-admin-login">
-        <label for="admin-pin">Gizli PIN</label>
-        <input type="password" id="admin-pin" class="pin-input" autocomplete="off" required>
-        <div class="error-text" id="admin-login-error"></div>
-        <button type="submit" class="btn btn-primary">Giriş Yap</button>
-      </form>
-      <button type="button" class="btn btn-ghost btn-back">&larr; Rol seçimine dön</button>
-    </div>
-  </section>
-
-  <!-- ÖĞRETMEN GİRİŞ -->
-  <section id="screen-teacher-login" class="screen">
-    <div class="card">
-      <div class="eyebrow">Öğretmen Girişi</div>
-      <h2>Hesabına gir</h2>
-      <form id="form-teacher-login">
-        <label for="teacher-username">Kullanıcı Adı</label>
-        <input type="text" id="teacher-username" autocomplete="off" required>
-        <label for="teacher-password">Şifre</label>
-        <input type="password" id="teacher-password" autocomplete="off" required>
-        <div class="checkbox-row">
-          <input type="checkbox" id="teacher-remember" checked>
-          <label for="teacher-remember">Bu cihazda beni hatırla</label>
-        </div>
-        <div class="error-text" id="teacher-login-error"></div>
-        <button type="submit" class="btn btn-primary">Giriş Yap</button>
-      </form>
-      <button type="button" class="btn btn-ghost btn-back">&larr; Rol seçimine dön</button>
-    </div>
-  </section>
-
-  <!-- ÖĞRENCİ GİRİŞ -->
-  <section id="screen-student-login" class="screen">
-    <div class="card">
-      <div class="eyebrow">Öğrenci Girişi</div>
-      <h2>Hesabına gir</h2>
-      <form id="form-student-login">
-        <label for="student-username">Kullanıcı adı</label>
-        <input type="text" id="student-username" autocomplete="off" required>
-        <label for="student-password">Şifre</label>
-        <input type="password" id="student-password" autocomplete="off" required>
-        <div class="checkbox-row">
-          <input type="checkbox" id="student-remember" checked>
-          <label for="student-remember">Bu cihazda beni hatırla</label>
-        </div>
-        <div class="error-text" id="student-login-error"></div>
-        <button type="submit" class="btn btn-primary">Giriş Yap</button>
-      </form>
-      <button type="button" class="btn btn-ghost btn-back">&larr; Rol seçimine dön</button>
-    </div>
-  </section>
-
-  <!-- ADMIN PANELİ -->
-  <section id="screen-admin-dashboard" class="screen">
-    <div class="top-bar">
-      <div>
-        <div class="eyebrow">ADMIN</div>
-        <h2 id="admin-name"></h2>
-      </div>
-      <button type="button" class="btn-icon" id="admin-logout">Çıkış</button>
-    </div>
-
-    <div class="card">
-      <h3>Yeni Öğretmen Ekle</h3>
-      <form id="form-add-teacher">
-        <label for="new-teacher-name">Ad Soyad</label>
-        <input type="text" id="new-teacher-name" autocomplete="off" required>
-        <label for="new-teacher-username">Kullanıcı Adı</label>
-        <input type="text" id="new-teacher-username" autocomplete="off" required>
-        <label for="new-teacher-password">Şifre</label>
-        <div class="input-with-button">
-          <input type="text" id="new-teacher-password" class="pin-input" autocomplete="off" required>
-          <button type="button" class="btn-inline" id="btn-generate-pin">Otomatik Ata</button>
-        </div>
-        <div class="error-text" id="add-teacher-error"></div>
-        <button type="submit" class="btn btn-primary">Ekle</button>
-      </form>
-    </div>
-
-    <h3 class="section-label">Öğretmenler</h3>
-    <div id="teacher-list"><p class="empty-state">Yükleniyor…</p></div>
-  </section>
-
-  <!-- ÖĞRETMEN PANELİ -->
-  <section id="screen-teacher-dashboard" class="screen">
-    <div class="top-bar">
-      <div>
-        <div class="eyebrow">ÖĞRETMEN</div>
-        <h2 id="teacher-name"></h2>
-      </div>
-      <button type="button" class="btn-icon" id="teacher-logout">Çıkış</button>
-    </div>
-
-    <div id="missing-today-banner"></div>
-
-    <div class="card">
-      <h3>Yeni Öğrenci Ekle</h3>
-      <form id="form-add-student">
-        <label for="new-student-name">Ad Soyad</label>
-        <input type="text" id="new-student-name" autocomplete="off" required>
-        <label for="new-student-username">Kullanıcı Adı</label>
-        <input type="text" id="new-student-username" autocomplete="off" required>
-        <label for="new-student-password">Şifre</label>
-        <div class="input-with-button">
-          <input type="text" id="new-student-password" autocomplete="off" required>
-          <button type="button" class="btn-inline" id="btn-generate-student-password">Otomatik Ata</button>
-        </div>
-        <label for="new-student-target">Günlük Hedef (opsiyonel)</label>
-        <input type="number" id="new-student-target" min="0" step="1">
-        <div class="error-text" id="add-student-error"></div>
-        <button type="submit" class="btn btn-primary">Ekle</button>
-      </form>
-    </div>
-
-    <h3 class="section-label">Öğrenciler</h3>
-    <div id="student-list"><p class="empty-state">Yükleniyor…</p></div>
-  </section>
-
-  <!-- ÖĞRENCİ DETAY (öğretmen görünümü) -->
-  <section id="screen-student-detail" class="screen">
-    <button type="button" class="btn btn-ghost" id="detail-back" style="margin-top:0;">&larr; Öğrenci listesine dön</button>
-    <div class="top-bar">
-      <div>
-        <div class="eyebrow">ÖĞRENCİ</div>
-        <h2 id="detail-student-name"></h2>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="eyebrow">Son Giriş</div>
-      <p id="detail-last-entry" class="mono" style="font-size:16px; margin:0;"></p>
-    </div>
-
-    <div class="card">
-      <h3>İstatistikler</h3>
-      <div class="stat-grid" id="detail-stat-grid"></div>
-    </div>
-
-    <div class="card">
-      <h3>Derslere Göre</h3>
-      <div id="detail-subject-table"></div>
-    </div>
-
-    <div class="card">
-      <h3>Soru Girişi Ekle / Düzenle</h3>
-      <label for="detail-entry-date">Tarih</label>
-      <input type="date" id="detail-entry-date">
-      <div class="entry-subjects-grid" id="detail-entry-subjects"></div>
-      <div class="error-text" id="detail-entry-error"></div>
-      <button type="button" class="btn btn-primary" id="btn-save-entry">Kaydet</button>
-    </div>
-
-    <div class="card">
-      <h3>Haftaya Dair Planlananlar ve Öneriler</h3>
-      <p class="hint-text" style="margin-top:-8px;">Öğrenci bunu kendi sayfasında salt-okunur görür.</p>
-      <textarea id="detail-weekly-plan" rows="4" placeholder="Bu hafta öğrenciden ne bekliyorsun?"></textarea>
-      <button type="button" class="btn btn-primary" id="btn-save-plan">Kaydet</button>
-    </div>
-
-    <div class="card">
-      <h3>Rehberlik Görüş ve Öneriler</h3>
-      <p class="hint-text" style="margin-top:-8px;">Öğrenci bunu kendi sayfasında salt-okunur görür.</p>
-      <textarea id="detail-guidance-note" rows="4" placeholder="Motivasyon, çalışma alışkanlıkları vb. gözlemlerin"></textarea>
-      <button type="button" class="btn btn-primary" id="btn-save-guidance">Kaydet</button>
-    </div>
-
-    <div class="card">
-      <h3>Giriş Bilgileri</h3>
-      <label for="detail-username">Kullanıcı Adı</label>
-      <input type="text" id="detail-username">
-      <label for="detail-password">Şifre</label>
-      <input type="text" id="detail-password">
-      <div class="error-text" id="detail-credentials-error"></div>
-      <button type="button" class="btn btn-primary" id="btn-save-credentials">Kaydet</button>
-    </div>
-
-    <div class="card">
-      <h3>Günlük Hedef</h3>
-      <input type="number" id="detail-target" min="0" step="1">
-      <div class="error-text" id="detail-target-error"></div>
-      <button type="button" class="btn btn-primary" id="btn-save-target">Kaydet</button>
-    </div>
-
-    <div class="card">
-      <h3>Tehlikeli Bölge</h3>
-      <p class="hint-text">Öğrenciyi ve tüm kayıtlarını (soru girişleri, denemeler, plan, notlar) kalıcı olarak siler.</p>
-      <button type="button" class="btn btn-danger" id="btn-delete-student">Öğrenciyi Sil</button>
-    </div>
-  </section>
-
-  <!-- GEÇİCİ PANEL (öğrenci rolü için — bir sonraki adımda dolduracağız) -->
-  <section id="screen-dashboard-placeholder" class="screen">
-    <div class="top-bar">
-      <div>
-        <div class="eyebrow" id="welcome-role"></div>
-        <h2 id="welcome-name"></h2>
-      </div>
-      <span class="badge">Bağlı</span>
-    </div>
-    <div class="card">
-      <p>Giriş başarılı. Bu panelin geri kalanı (öğrenci listesi, grafikler, Excel dışa aktarma vb.) bir sonraki adımda eklenecek.</p>
-      <button type="button" class="btn btn-danger" id="btn-logout">Çıkış Yap</button>
-    </div>
-  </section>
-
-</main>
-
-<script>
-  // ============================================================
-  // SUPABASE AYARLARI — Supabase Dashboard > Project Settings > API
-  // ============================================================
-  const SUPABASE_URL = 'https://uogcawdqegzuiecrjesn.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_Uf1npAPsugEXg594AFybQQ_K4gyZz1X';
-  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  const LS_TEACHER = 'lgs_teacher_session';
-  const LS_STUDENT = 'lgs_student_session';
-
-  let session = null; // { role, id, secret, name }
-
-  function $(id){ return document.getElementById(id); }
-  function showScreen(id){
-    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-    $(id).classList.add('active');
-    window.scrollTo(0, 0);
-  }
-  function setLoading(btn, loading, label){
-    btn.disabled = loading;
-    btn.textContent = loading ? 'Kontrol ediliyor…' : label;
-  }
-
-  document.querySelectorAll('.btn-back').forEach(b => b.addEventListener('click', () => {
-    ['admin-login-error','teacher-login-error','student-login-error'].forEach(id => { const el = $(id); if (el) el.textContent = ''; });
-    showScreen('screen-role');
-  }));
-
-  $('role-admin').addEventListener('click', () => showScreen('screen-admin-login'));
-  $('role-teacher').addEventListener('click', () => showScreen('screen-teacher-login'));
-  $('role-student').addEventListener('click', () => showScreen('screen-student-login'));
-
-  function enterDashboard(){
-    if (session.role === 'admin') { loadAdminDashboard(); return; }
-    if (session.role === 'teacher') { loadTeacherDashboard(); return; }
-    $('welcome-role').textContent = 'ÖĞRENCİ';
-    $('welcome-name').textContent = 'Merhaba, ' + session.name;
-    showScreen('screen-dashboard-placeholder');
-  }
-
-  function escapeHtml(str){
-    const div = document.createElement('div');
-    div.textContent = str == null ? '' : String(str);
-    return div.innerHTML;
-  }
-  function fmtDate(iso){
-    const d = new Date(iso);
-    return d.toLocaleDateString('tr-TR', { day:'2-digit', month:'short', year:'numeric' });
-  }
-  function todayStr(){
-    const d = new Date();
-    const local = new Date(d.getTime() - d.getTimezoneOffset()*60000);
-    return local.toISOString().slice(0,10);
-  }
-  function generatePin(length){
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 0,O,1,I karışmasın diye çıkarıldı
-    let out = '';
-    for (let i = 0; i < (length || 6); i++) out += chars[Math.floor(Math.random() * chars.length)];
-    return out;
-  }
-  $('btn-generate-pin').addEventListener('click', () => { $('new-teacher-password').value = generatePin(8); });
-  $('btn-generate-student-password').addEventListener('click', () => { $('new-student-password').value = generatePin(8); });
-
-  // ============================================================
-  // ADMIN PANELİ
-  // ============================================================
-  let teachersData = [];
-  let editingTeacherId = null;
-
-  async function loadAdminDashboard(){
-    $('admin-name').textContent = 'Merhaba, ' + session.name;
-    showScreen('screen-admin-dashboard');
-    await refreshTeachers();
-  }
-
-  async function refreshTeachers(){
-    const listEl = $('teacher-list');
-    const { data, error } = await sb.rpc('admin_list_teachers', { p_admin_id: session.id, p_pin: session.secret });
-    if (error || !data || data.error) {
-      listEl.innerHTML = '<p class="error-text">Öğretmen listesi yüklenemedi. Sayfayı yenile.</p>';
-      return;
-    }
-    teachersData = data.teachers || [];
-    renderTeacherList();
-  }
-
-  function renderTeacherList(){
-    const listEl = $('teacher-list');
-    if (teachersData.length === 0) {
-      listEl.innerHTML = '<p class="empty-state">Henüz öğretmen eklenmedi. Yukarıdan ilk öğretmeni ekleyebilirsin.</p>';
-      return;
-    }
-    listEl.innerHTML = teachersData.map(t => {
-      if (editingTeacherId === t.id) {
-        return `
-          <div class="card teacher-card" data-id="${t.id}">
-            <label>Ad Soyad</label>
-            <input type="text" class="edit-name-input" value="${escapeHtml(t.name)}">
-            <label>Kullanıcı Adı</label>
-            <input type="text" class="edit-username-input" value="${escapeHtml(t.username)}">
-            <label>Şifre</label>
-            <div class="input-with-button">
-              <input type="text" class="edit-password-input pin-input" value="${escapeHtml(t.password)}">
-              <button type="button" class="btn-inline btn-generate-pin-edit">Otomatik Ata</button>
-            </div>
-            <div class="error-text edit-error"></div>
-            <div class="teacher-actions">
-              <button type="button" class="btn-small btn-save-teacher">Kaydet</button>
-              <button type="button" class="btn-small btn-cancel-edit">Vazgeç</button>
-            </div>
-          </div>`;
-      }
-      return `
-        <div class="card teacher-card" data-id="${t.id}">
-          <div class="teacher-card-head">
-            <div>
-              <h3>${escapeHtml(t.name)}</h3>
-              <div class="hint-text">${t.student_count} öğrenci · ${fmtDate(t.created_at)}</div>
-            </div>
-          </div>
-          <div class="teacher-pin-row"><span class="eyebrow">Kullanıcı Adı</span><span class="mono">${escapeHtml(t.username)}</span></div>
-          <div class="teacher-pin-row"><span class="eyebrow">Şifre</span><span class="mono">${escapeHtml(t.password)}</span></div>
-          <div class="teacher-actions">
-            <button type="button" class="btn-small btn-edit-teacher">Düzenle</button>
-            <button type="button" class="btn-small btn-delete-teacher">Sil</button>
-          </div>
-        </div>`;
-    }).join('');
-
-    listEl.querySelectorAll('.btn-edit-teacher').forEach(b => b.addEventListener('click', () => {
-      editingTeacherId = b.closest('.teacher-card').dataset.id;
-      renderTeacherList();
-    }));
-    listEl.querySelectorAll('.btn-cancel-edit').forEach(b => b.addEventListener('click', () => {
-      editingTeacherId = null;
-      renderTeacherList();
-    }));
-    listEl.querySelectorAll('.btn-generate-pin-edit').forEach(b => b.addEventListener('click', () => {
-      b.closest('.teacher-card').querySelector('.edit-password-input').value = generatePin(8);
-    }));
-    listEl.querySelectorAll('.btn-save-teacher').forEach(b => b.addEventListener('click', async () => {
-      const card = b.closest('.teacher-card');
-      const id = card.dataset.id;
-      const name = card.querySelector('.edit-name-input').value.trim();
-      const username = card.querySelector('.edit-username-input').value.trim();
-      const password = card.querySelector('.edit-password-input').value.trim();
-      const errEl = card.querySelector('.edit-error');
-      errEl.textContent = '';
-      b.disabled = true; b.textContent = 'Kaydediliyor…';
-      const { data, error } = await sb.rpc('admin_update_teacher', {
-        p_admin_id: session.id, p_pin: session.secret, p_teacher_id: id,
-        p_name: name, p_new_username: username, p_new_password: password
-      });
-      if (error || !data || data.error) {
-        errEl.textContent = data && data.error === 'username_taken' ? 'Bu kullanıcı adı başka bir öğretmende kayıtlı.' : 'Kaydedilemedi, tekrar dene.';
-        b.disabled = false; b.textContent = 'Kaydet';
-        return;
-      }
-      editingTeacherId = null;
-      await refreshTeachers();
-    }));
-    listEl.querySelectorAll('.btn-delete-teacher').forEach(b => b.addEventListener('click', async () => {
-      const id = b.closest('.teacher-card').dataset.id;
-      const t = teachersData.find(x => x.id === id);
-      if (!confirm(t.name + ' adlı öğretmeni silmek istediğine emin misin? Bu öğretmenin tüm öğrencileri ve verileri de silinecek.')) return;
-      b.disabled = true; b.textContent = 'Siliniyor…';
-      const { data, error } = await sb.rpc('admin_delete_teacher', { p_admin_id: session.id, p_pin: session.secret, p_teacher_id: id });
-      if (error || !data || data.error) { alert('Silinemedi, tekrar dene.'); b.disabled = false; b.textContent = 'Sil'; return; }
-      await refreshTeachers();
-    }));
-  }
-
-  $('form-add-teacher').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = $('new-teacher-name').value.trim();
-    const username = $('new-teacher-username').value.trim();
-    const password = $('new-teacher-password').value.trim();
-    const errEl = $('add-teacher-error');
-    const btn = e.target.querySelector('button[type=submit]');
-    errEl.textContent = '';
-    setLoading(btn, true, 'Ekle');
-    const { data, error } = await sb.rpc('admin_add_teacher', { p_admin_id: session.id, p_pin: session.secret, p_name: name, p_username: username, p_password: password });
-    setLoading(btn, false, 'Ekle');
-    if (error || !data || data.error) {
-      errEl.textContent = data && data.error === 'username_taken' ? 'Bu kullanıcı adı zaten alınmış, başka bir tane dene.' : 'Eklenemedi, tekrar dene.';
-      return;
-    }
-    e.target.reset();
-    await refreshTeachers();
-  });
-
-  $('admin-logout').addEventListener('click', () => {
-    session = null;
-    showScreen('screen-role');
-  });
-
-  // ============================================================
-  // ÖĞRETMEN PANELİ
-  // ============================================================
-  const SUBJECTS = ['Türkçe', 'Matematik', 'Fen Bilimleri', 'T.C. İnkılap Tarihi', 'Din Kültürü', 'İngilizce'];
-  let studentsData = [];
-  let currentStudent = null;
-
-  async function loadTeacherDashboard(){
-    $('teacher-name').textContent = 'Merhaba, ' + session.name;
-    showScreen('screen-teacher-dashboard');
-    await refreshStudents();
-  }
-
-  function entryTotal(entry){
-    if (!entry || !entry.subjects) return 0;
-    return Object.values(entry.subjects).reduce((a,b) => a + (Number(b)||0), 0);
-  }
-
-  function relDateLabel(dateStr){
-    if (!dateStr) return 'Hiç giriş yapılmadı';
-    const today = todayStr();
-    if (dateStr === today) return 'Bugün';
-    const diffDays = Math.round((new Date(today) - new Date(dateStr)) / 86400000);
-    if (diffDays === 1) return 'Dün';
-    if (diffDays > 1) return diffDays + ' gün önce';
-    return fmtDate(dateStr);
-  }
-
-  async function refreshStudents(){
-    const listEl = $('student-list');
-    const { data, error } = await sb.rpc('teacher_get_data', { p_teacher_id: session.id, p_password: session.secret });
-    if (error || !data || data.error) {
-      listEl.innerHTML = '<p class="error-text">Öğrenci listesi yüklenemedi. Sayfayı yenile.</p>';
-      return;
-    }
-    studentsData = data.students || [];
-    renderMissingBanner();
-    renderStudentList();
-  }
-
-  function renderMissingBanner(){
-    const today = todayStr();
-    const missing = studentsData.filter(s => s.last_entry_date !== today);
-    const bannerEl = $('missing-today-banner');
-    if (missing.length === 0) { bannerEl.innerHTML = ''; return; }
-    bannerEl.innerHTML = '<div class="banner-warning"><strong>' + missing.length + ' öğrenci</strong> bugün henüz soru girmedi: ' +
-      missing.map(s => escapeHtml(s.name)).join(', ') + '</div>';
-  }
-
-  function renderStudentList(){
-    const listEl = $('student-list');
-    if (studentsData.length === 0) {
-      listEl.innerHTML = '<p class="empty-state">Henüz öğrenci eklenmedi. Yukarıdan ilk öğrenciyi ekleyebilirsin.</p>';
-      return;
-    }
-    const today = todayStr();
-    listEl.innerHTML = studentsData.map(s => {
-      const isToday = s.last_entry_date === today;
-      return `
-        <div class="card student-card" data-id="${s.id}">
-          <div class="teacher-card-head">
-            <div>
-              <h3>${escapeHtml(s.name)}</h3>
-              <div class="hint-text">${escapeHtml(s.username)}${s.daily_target != null ? ' · Hedef: ' + s.daily_target : ''}</div>
-            </div>
-            <span class="status-pill ${isToday ? 'status-ok' : 'status-warn'}">${relDateLabel(s.last_entry_date)}</span>
-          </div>
-          <div class="teacher-actions">
-            <button type="button" class="btn-small btn-edit-teacher btn-open-detail">Detay</button>
-            <button type="button" class="btn-small btn-delete-teacher btn-delete-student">Sil</button>
-          </div>
-        </div>`;
-    }).join('');
-
-    listEl.querySelectorAll('.btn-open-detail').forEach(b => b.addEventListener('click', () => {
-      openStudentDetail(b.closest('.student-card').dataset.id);
-    }));
-    listEl.querySelectorAll('.btn-delete-student').forEach(b => b.addEventListener('click', async () => {
-      const id = b.closest('.student-card').dataset.id;
-      const s = studentsData.find(x => x.id === id);
-      if (!confirm(s.name + ' adlı öğrenciyi silmek istediğine emin misin? Tüm kayıtları da silinecek.')) return;
-      b.disabled = true; b.textContent = 'Siliniyor…';
-      const { data, error } = await sb.rpc('teacher_delete_student', { p_teacher_id: session.id, p_password: session.secret, p_student_id: id });
-      if (error || !data || data.error) { alert('Silinemedi, tekrar dene.'); b.disabled = false; b.textContent = 'Sil'; return; }
-      await refreshStudents();
-    }));
-  }
-
-  $('form-add-student').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = $('new-student-name').value.trim();
-    const username = $('new-student-username').value.trim();
-    const password = $('new-student-password').value.trim();
-    const targetRaw = $('new-student-target').value;
-    const target = targetRaw === '' ? null : parseInt(targetRaw, 10);
-    const errEl = $('add-student-error');
-    const btn = e.target.querySelector('button[type=submit]');
-    errEl.textContent = '';
-    setLoading(btn, true, 'Ekle');
-    const { data, error } = await sb.rpc('teacher_add_student', {
-      p_teacher_id: session.id, p_password: session.secret, p_name: name,
-      p_username: username, p_student_password: password, p_daily_target: target
-    });
-    setLoading(btn, false, 'Ekle');
-    if (error || !data || data.error) {
-      errEl.textContent = data && data.error === 'username_taken' ? 'Bu kullanıcı adı zaten alınmış.' : 'Eklenemedi, tekrar dene.';
-      return;
-    }
-    e.target.reset();
-    await refreshStudents();
-  });
-
-  $('teacher-logout').addEventListener('click', () => {
-    localStorage.removeItem(LS_TEACHER);
-    session = null;
-    showScreen('screen-role');
-  });
-
-  // ============================================================
-  // ÖĞRENCİ DETAY (öğretmen görünümü)
-  // ============================================================
-  function weekRange(offsetWeeks){
-    const now = new Date();
-    const day = (now.getDay() + 6) % 7; // 0=Pazartesi
-    const monday = new Date(now); monday.setDate(now.getDate() - day + offsetWeeks*7); monday.setHours(0,0,0,0);
-    const sunday = new Date(monday); sunday.setDate(monday.getDate()+6); sunday.setHours(23,59,59,999);
-    return [monday, sunday];
-  }
-  function inRange(dateStr, start, end){
-    const d = new Date(dateStr + 'T12:00:00');
-    return d >= start && d <= end;
-  }
-  function sumEntries(entries, predicate){
-    return entries.filter(e => predicate(e.date)).reduce((sum,e) => sum + entryTotal(e), 0);
-  }
-
-  function openStudentDetail(id){
-    currentStudent = studentsData.find(s => s.id === id);
-    if (!currentStudent) return;
-    $('detail-student-name').textContent = currentStudent.name;
-    $('detail-last-entry').textContent = relDateLabel(currentStudent.last_entry_date);
-    $('detail-username').value = currentStudent.username;
-    $('detail-password').value = currentStudent.password;
-    $('detail-target').value = currentStudent.daily_target != null ? currentStudent.daily_target : '';
-    $('detail-weekly-plan').value = currentStudent.weekly_plan || '';
-    $('detail-guidance-note').value = currentStudent.guidance_note || '';
-    ['detail-credentials-error','detail-target-error','detail-entry-error'].forEach(id2 => { $(id2).textContent=''; $(id2).style.color=''; });
-    renderDetailStats();
-    renderEntryForm(todayStr());
-    showScreen('screen-student-detail');
-  }
-
-  $('detail-back').addEventListener('click', () => showScreen('screen-teacher-dashboard'));
-
-  function renderDetailStats(){
-    const entries = currentStudent.entries || [];
-    const today = todayStr();
-    const [wStart, wEnd] = weekRange(0);
-    const [lwStart, lwEnd] = weekRange(-1);
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59);
-    const lastMonthStart = new Date(now.getFullYear(), now.getMonth()-1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23,59,59);
-
-    const stats = [
-      ['Bugün', sumEntries(entries, d => d === today)],
-      ['Bu Hafta', sumEntries(entries, d => inRange(d, wStart, wEnd))],
-      ['Geçen Hafta', sumEntries(entries, d => inRange(d, lwStart, lwEnd))],
-      ['Bu Ay', sumEntries(entries, d => inRange(d, monthStart, monthEnd))],
-      ['Geçen Ay', sumEntries(entries, d => inRange(d, lastMonthStart, lastMonthEnd))],
-      ['Tüm Zamanlar', entries.reduce((sum,e) => sum + entryTotal(e), 0)]
-    ];
-    $('detail-stat-grid').innerHTML = stats.map(([label,val]) =>
-      `<div class="stat-box"><div class="stat-value mono">${val}</div><div class="stat-label">${label}</div></div>`
-    ).join('');
-
-    const weekBySubject = {}, totalBySubject = {};
-    SUBJECTS.forEach(s => { weekBySubject[s]=0; totalBySubject[s]=0; });
-    entries.forEach(e => {
-      const inWeek = inRange(e.date, wStart, wEnd);
-      Object.entries(e.subjects || {}).forEach(([subj, count]) => {
-        const c = Number(count) || 0;
-        if (!(subj in totalBySubject)) { totalBySubject[subj] = 0; weekBySubject[subj] = 0; }
-        totalBySubject[subj] += c;
-        if (inWeek) weekBySubject[subj] += c;
-      });
-    });
-    const grandTotal = Object.values(totalBySubject).reduce((a,b)=>a+b,0);
-    const rows = Object.keys(totalBySubject).map(subj => {
-      const pct = grandTotal > 0 ? Math.round((totalBySubject[subj] / grandTotal) * 100) : 0;
-      return `<tr><td>${escapeHtml(subj)}</td><td class="mono">${weekBySubject[subj]}</td><td class="mono">${totalBySubject[subj]}</td><td class="mono">%${pct}</td></tr>`;
-    }).join('');
-    $('detail-subject-table').innerHTML = `<table class="subject-table"><thead><tr><th>Ders</th><th>Hafta</th><th>Toplam</th><th>Yüzde</th></tr></thead><tbody>${rows}</tbody></table>`;
-  }
-
-  function renderEntryForm(dateStr){
-    $('detail-entry-date').value = dateStr;
-    $('detail-entry-date').max = todayStr();
-    const entry = (currentStudent.entries || []).find(e => e.date === dateStr);
-    const subjects = entry ? entry.subjects : {};
-    $('detail-entry-subjects').innerHTML = SUBJECTS.map(subj => `
-      <div class="subject-field">
-        <label>${escapeHtml(subj)}</label>
-        <input type="number" min="0" step="1" class="entry-subject-input" data-subject="${escapeHtml(subj)}" value="${subjects[subj] || 0}">
-      </div>`).join('');
-  }
-
-  $('detail-entry-date').addEventListener('change', (e) => renderEntryForm(e.target.value));
-
-  $('btn-save-entry').addEventListener('click', async () => {
-    const date = $('detail-entry-date').value;
-    const errEl = $('detail-entry-error');
-    errEl.style.color = ''; errEl.textContent = '';
-    if (!date) { errEl.textContent = 'Tarih seç.'; return; }
-    const subjects = {};
-    document.querySelectorAll('.entry-subject-input').forEach(inp => {
-      const v = parseInt(inp.value, 10);
-      if (v > 0) subjects[inp.dataset.subject] = v;
-    });
-    const btn = $('btn-save-entry');
-    setLoading(btn, true, 'Kaydet');
-    const { data, error } = await sb.rpc('teacher_save_entry', {
-      p_teacher_id: session.id, p_password: session.secret, p_student_id: currentStudent.id, p_date: date, p_subjects: subjects
-    });
-    setLoading(btn, false, 'Kaydet');
-    if (error || !data || data.error) { errEl.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
-    const idx = currentStudent.entries.findIndex(e => e.date === date);
-    if (idx >= 0) currentStudent.entries[idx].subjects = subjects;
-    else currentStudent.entries.push({ date, subjects });
-    if (!currentStudent.last_entry_date || date > currentStudent.last_entry_date) currentStudent.last_entry_date = date;
-    renderDetailStats();
-    $('detail-last-entry').textContent = relDateLabel(currentStudent.last_entry_date);
-    errEl.style.color = 'var(--green)'; errEl.textContent = 'Kaydedildi.';
-    setTimeout(() => { errEl.textContent=''; errEl.style.color=''; }, 2000);
-  });
-
-  $('btn-save-credentials').addEventListener('click', async () => {
-    const username = $('detail-username').value.trim();
-    const password = $('detail-password').value.trim();
-    const errEl = $('detail-credentials-error');
-    errEl.textContent = '';
-    const btn = $('btn-save-credentials');
-    setLoading(btn, true, 'Kaydet');
-    const { data, error } = await sb.rpc('teacher_update_credentials', {
-      p_teacher_id: session.id, p_password: session.secret, p_student_id: currentStudent.id, p_username: username, p_student_password: password
-    });
-    setLoading(btn, false, 'Kaydet');
-    if (error || !data || data.error) {
-      errEl.textContent = data && data.error === 'username_taken' ? 'Bu kullanıcı adı başka bir öğrencide kayıtlı.' : 'Kaydedilemedi.';
-      return;
-    }
-    currentStudent.username = username; currentStudent.password = password;
-    const s = studentsData.find(x => x.id === currentStudent.id);
-    if (s) { s.username = username; s.password = password; }
-  });
-
-  $('btn-save-target').addEventListener('click', async () => {
-    const raw = $('detail-target').value;
-    const target = raw === '' ? null : parseInt(raw, 10);
-    const errEl = $('detail-target-error');
-    errEl.textContent = '';
-    const btn = $('btn-save-target');
-    setLoading(btn, true, 'Kaydet');
-    const { data, error } = await sb.rpc('teacher_update_target', {
-      p_teacher_id: session.id, p_password: session.secret, p_student_id: currentStudent.id, p_daily_target: target
-    });
-    setLoading(btn, false, 'Kaydet');
-    if (error || !data || data.error) { errEl.textContent = 'Kaydedilemedi.'; return; }
-    currentStudent.daily_target = target;
-    const s = studentsData.find(x => x.id === currentStudent.id);
-    if (s) s.daily_target = target;
-  });
-
-  $('btn-save-plan').addEventListener('click', async () => {
-    const content = $('detail-weekly-plan').value;
-    const btn = $('btn-save-plan');
-    setLoading(btn, true, 'Kaydet');
-    const { data, error } = await sb.rpc('teacher_save_weekly_plan', {
-      p_teacher_id: session.id, p_password: session.secret, p_student_id: currentStudent.id, p_content: content
-    });
-    setLoading(btn, false, 'Kaydet');
-    if (!error && data && !data.error) currentStudent.weekly_plan = content;
-  });
-
-  $('btn-save-guidance').addEventListener('click', async () => {
-    const content = $('detail-guidance-note').value;
-    const btn = $('btn-save-guidance');
-    setLoading(btn, true, 'Kaydet');
-    const { data, error } = await sb.rpc('teacher_save_guidance_note', {
-      p_teacher_id: session.id, p_password: session.secret, p_student_id: currentStudent.id, p_content: content
-    });
-    setLoading(btn, false, 'Kaydet');
-    if (!error && data && !data.error) currentStudent.guidance_note = content;
-  });
-
-  $('btn-delete-student').addEventListener('click', async () => {
-    if (!confirm(currentStudent.name + ' adlı öğrenciyi silmek istediğine emin misin? Tüm kayıtları da silinecek.')) return;
-    const btn = $('btn-delete-student');
-    setLoading(btn, true, 'Öğrenciyi Sil');
-    const { data, error } = await sb.rpc('teacher_delete_student', { p_teacher_id: session.id, p_password: session.secret, p_student_id: currentStudent.id });
-    if (error || !data || data.error) { alert('Silinemedi, tekrar dene.'); setLoading(btn, false, 'Öğrenciyi Sil'); return; }
-    showScreen('screen-teacher-dashboard');
-    await refreshStudents();
-  });
-
-  // --- Admin girişi ---
-  $('form-admin-login').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const pin = $('admin-pin').value.trim();
-    const errEl = $('admin-login-error');
-    const btn = e.target.querySelector('button[type=submit]');
-    errEl.textContent = '';
-    setLoading(btn, true, 'Giriş Yap');
-    const { data, error } = await sb.rpc('admin_login', { p_pin: pin });
-    setLoading(btn, false, 'Giriş Yap');
-    if (error || !data || data.error) { errEl.textContent = 'PIN hatalı. Tekrar dene.'; return; }
-    session = { role: 'admin', id: data.id, secret: pin, name: data.name };
-    enterDashboard();
-  });
-
-  // --- Öğretmen girişi ---
-  $('form-teacher-login').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const username = $('teacher-username').value.trim();
-    const password = $('teacher-password').value;
-    const remember = $('teacher-remember').checked;
-    const errEl = $('teacher-login-error');
-    const btn = e.target.querySelector('button[type=submit]');
-    errEl.textContent = '';
-    setLoading(btn, true, 'Giriş Yap');
-    const { data, error } = await sb.rpc('teacher_login', { p_username: username, p_password: password });
-    setLoading(btn, false, 'Giriş Yap');
-    if (error || !data || data.error) { errEl.textContent = 'Kullanıcı adı veya şifre hatalı.'; return; }
-    session = { role: 'teacher', id: data.id, secret: password, name: data.name };
-    if (remember) localStorage.setItem(LS_TEACHER, JSON.stringify({ id: data.id, username: username, secret: password, name: data.name }));
-    enterDashboard();
-  });
-
-  // --- Öğrenci girişi ---
-  $('form-student-login').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const username = $('student-username').value.trim();
-    const password = $('student-password').value;
-    const remember = $('student-remember').checked;
-    const errEl = $('student-login-error');
-    const btn = e.target.querySelector('button[type=submit]');
-    errEl.textContent = '';
-    setLoading(btn, true, 'Giriş Yap');
-    const { data, error } = await sb.rpc('student_login', { p_username: username, p_password: password });
-    setLoading(btn, false, 'Giriş Yap');
-    if (error || !data || data.error) { errEl.textContent = 'Kullanıcı adı veya şifre hatalı.'; return; }
-    session = { role: 'student', id: data.id, secret: password, name: data.name };
-    if (remember) localStorage.setItem(LS_STUDENT, JSON.stringify({ id: data.id, secret: password, name: data.name }));
-    enterDashboard();
-  });
-
-  // --- Çıkış ---
-  $('btn-logout').addEventListener('click', () => {
-    if (session && session.role === 'student') {
-      if (!confirm('Çıkış yapmak istediğine emin misin?')) return;
-    }
-    localStorage.removeItem(LS_TEACHER);
-    localStorage.removeItem(LS_STUDENT);
-    session = null;
-    showScreen('screen-role');
-  });
 
   // --- Cihazda hatırlanan oturumu otomatik aç ---
   (async function tryAutoLogin(){
