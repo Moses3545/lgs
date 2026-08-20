@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soru Takip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --cream:#F7F2E6;
+    --grid-line:rgba(66,99,133,.16);
+    --ink:#2A2A24;
+    --red:#C0392B;
+    --green:#2F6F4F;
+    --gold:#B8902E;
+    --paper:#FFFDF8;
+    --muted:#8B8577;
+    --danger-bg:#FBEAE7;
+    --success-bg:#EAF3EC;
+    --radius:6px;
+    --shadow:0 1px 2px rgba(42,42,36,.06), 0 4px 14px rgba(42,42,36,.08);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    background-color:var(--cream);
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size:22px 22px;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{ font-family:'Fraunces', serif; margin:0 0 4px; letter-spacing:-0.01em; }
+  h1{ font-size:26px; font-weight:600; }
+  h2{ font-size:19px; font-weight:600; }
+  h3{ font-size:15px; font-weight:600; }
+  p{ margin:0 0 12px; line-height:1.55; }
+  .mono{ font-family:'IBM Plex Mono', monospace; font-variant-numeric:tabular-nums; }
+
+  .app{ max-width:440px; margin:0 auto; padding:28px 18px 60px; position:relative; }
+
+  .screen{ display:none; }
+  .screen.active{ display:block; animation:fadeIn .25s ease; }
+  @media (prefers-reduced-motion:reduce){ .screen.active{ animation:none; } }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  .card{
+    position:relative;
+    background:var(--paper);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:22px 20px 22px 32px;
+    margin-bottom:16px;
+  }
+  .card::before{
+    content:'';
+    position:absolute; left:20px; top:0; bottom:0; width:1.5px;
+    background:var(--red); opacity:.55;
+  }
+
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:6px;
+  }
+
+  .role-grid{ display:flex; flex-direction:column; gap:12px; margin-top:20px; }
+  .role-btn{
+    display:flex; align-items:center; gap:14px;
+    width:100%;
+    background:var(--paper);
+    border:1px solid rgba(42,42,36,.08);
+    border-radius:var(--radius);
+    padding:16px 18px;
+    cursor:pointer; text-align:left;
+    font-family:'Inter',sans-serif; font-size:15px; font-weight:600; color:var(--ink);
+    box-shadow:var(--shadow);
+    transition:transform .12s ease;
+  }
+  .role-btn:hover{ transform:translateY(-1px); }
+  .role-btn:active{ transform:translateY(0); }
+  .role-btn .icon{
+    width:38px; height:38px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; color:#fff;
+  }
+  .role-btn .sub{ display:block; font-weight:400; font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .role-admin .icon{ background:var(--gold); }
+  .role-teacher .icon{ background:var(--green); }
+  .role-student .icon{ background:var(--red); }
+
+  label{ display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin:14px 0 6px; }
+  label:first-of-type{ margin-top:0; }
+  input[type=text], input[type=password], input[type=number], input[type=date], textarea{
+    width:100%; font-family:'Inter',sans-serif; font-size:15px;
+    padding:11px 12px; border:1px solid rgba(42,42,36,.16); border-radius:5px;
+    background:#fff; color:var(--ink);
+  }
+  .pin-input{ font-family:'IBM Plex Mono', monospace; letter-spacing:.12em; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible{
+    outline:2px solid var(--green); outline-offset:2px;
+  }
+
+  .checkbox-row{ display:flex; align-items:center; gap:8px; margin:14px 0 4px; }
+  .checkbox-row input{ width:16px; height:16px; }
+  .checkbox-row label{ margin:0; font-weight:500; color:var(--ink); font-size:13.5px; }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; width:100%;
+    font-family:'Inter',sans-serif; font-size:15px; font-weight:600;
+    padding:12px 16px; border:none; border-radius:5px; cursor:pointer;
+    margin-top:18px; transition:opacity .12s ease;
+  }
+  .btn:disabled{ opacity:.6; cursor:default; }
+  .btn-primary{ background:var(--green); color:#fff; }
+  .btn-primary:hover:not(:disabled){ opacity:.92; }
+  .btn-danger{ background:var(--red); color:#fff; }
+  .btn-ghost{ background:transparent; color:var(--muted); text-decoration:underline; width:auto; padding:6px 0; margin-top:12px; font-weight:500; font-size:13.5px; }
+
+  .error-text{ color:var(--red); font-size:13px; margin-top:10px; min-height:16px; }
+  .hint-text{ color:var(--muted); font-size:12.5px; margin-top:8px; }
+
+  .top-bar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .badge{ font-family:'IBM Plex Mono',monospace; font-size:11px; padding:3px 9px; border-radius:20px; background:var(--success-bg); color:var(--green); font-weight:600; }
+</style>
+</head>
+<body>
+<main class="app">
+
+  <!-- ROL SEÇİMİ -->
+  <section id="screen-role" class="screen active">
+    <div class="eyebrow">Soru Takip</div>
+    <h1>Kim giriş yapıyor?</h1>
+    <p>Rolünü seç, devam edelim.</p>
+    <div class="role-grid">
+      <button type="button" class="role-btn role-admin" id="role-admin">
+        <span class="icon">A</span>
+        <span><span>Admin</span><span class="sub">Öğretmen hesaplarını yönet</span></span>
+      </button>
+      <button type="button" class="role-btn role-teacher" id="role-teacher">
+        <span class="icon">Ö</span>
+        <span><span>Öğretmen</span><span class="sub">Öğrencilerini takip et</span></span>
+      </button>
+      <button type="button" class="role-btn role-student" id="role-student">
+        <span class="icon">S</span>
+        <span><span>Öğrenci</span><span class="sub">Bugünün sorularını gir</span></span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ADMIN GİRİŞ -->
+  <section id="screen-admin-login" class="screen">
+    <div class="card">
+      <div class="eyebrow">Admin Girişi</div>
+      <h2>PIN'ini gir</h2>
+      <form id="form-admin-login">
+        <label for="admin-pin">Gizli PIN</label>
+        <input type="password" id="admin-pin" class="pin-input" autocomplete="off" required>
+        <div class="error-text" id="admin-login-error"></div>
+        <button type="submit" class="btn btn-primary">Giriş Yap</button>
+      </form>
+      <button type="button" class="btn btn-ghost btn-back">&larr; Rol seçimine dön</button>
+    </div>
+  </section>
+
+  <!-- ÖĞRETMEN GİRİŞ -->
+  <section id="screen-teacher-login" class="screen">
+    <div class="card">
+      <div class="eyebrow">Öğretmen Girişi</div>
+      <h2>PIN'ini gir</h2>
+      <form id="form-teacher-login">
+        <label for="teacher-pin">PIN</label>
+        <input type="password" id="teacher-pin" class="pin-input" autocomplete="off" required>
+        <div class="checkbox-row">
+          <input type="checkbox" id="teacher-remember" checked>
+          <label for="teacher-remember">Bu cihazda beni hatırla</label>
+        </div>
+        <div class="error-text" id="teacher-login-error"></div>
+        <button type="submit" class="btn btn-primary">Giriş Yap</button>
+      </form>
+      <button type="button" class="btn btn-ghost btn-back">&larr; Rol seçimine dön</button>
+    </div>
+  </section>
+
+  <!-- ÖĞRENCİ GİRİŞ -->
+  <section id="screen-student-login" class="screen">
+    <div class="card">
+      <div class="eyebrow">Öğrenci Girişi</div>
+      <h2>Hesabına gir</h2>
+      <form id="form-student-login">
+        <label for="student-username">Kullanıcı adı</label>
+        <input type="text" id="student-username" autocomplete="off" required>
+        <label for="student-password">Şifre</label>
+        <input type="password" id="student-password" autocomplete="off" required>
+        <div class="checkbox-row">
+          <input type="checkbox" id="student-remember" checked>
+          <label for="student-remember">Bu cihazda beni hatırla</label>
+        </div>
+        <div class="error-text" id="student-login-error"></div>
+        <button type="submit" class="btn btn-primary">Giriş Yap</button>
+      </form>
+      <button type="button" class="btn btn-ghost btn-back">&larr; Rol seçimine dön</button>
+    </div>
+  </section>
+
+  <!-- GEÇİCİ PANEL (bir sonraki adımda dolduracağız) -->
+  <section id="screen-dashboard-placeholder" class="screen">
+    <div class="top-bar">
+      <div>
+        <div class="eyebrow" id="welcome-role"></div>
+        <h2 id="welcome-name"></h2>
+      </div>
+      <span class="badge">Bağlı</span>
+    </div>
+    <div class="card">
+      <p>Giriş başarılı. Bu panelin geri kalanı (öğrenci listesi, grafikler, Excel dışa aktarma vb.) bir sonraki adımda eklenecek.</p>
+      <button type="button" class="btn btn-danger" id="btn-logout">Çıkış Yap</button>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  // ============================================================
+  // SUPABASE AYARLARI — Supabase Dashboard > Project Settings > API
+  // ============================================================
+  const SUPABASE_URL = 'https://uogcawdqegzuiecrjesn.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_Uf1npAPsugEXg594AFybQQ_K4gyZz1X';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const LS_TEACHER = 'lgs_teacher_session';
+  const LS_STUDENT = 'lgs_student_session';
+
+  let session = null; // { role, id, secret, name }
+
+  function $(id){ return document.getElementById(id); }
+  function showScreen(id){
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    $(id).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+  function setLoading(btn, loading, label){
+    btn.disabled = loading;
+    btn.textContent = loading ? 'Kontrol ediliyor…' : label;
+  }
+
+  document.querySelectorAll('.btn-back').forEach(b => b.addEventListener('click', () => {
+    ['admin-login-error','teacher-login-error','student-login-error'].forEach(id => { const el = $(id); if (el) el.textContent = ''; });
+    showScreen('screen-role');
+  }));
+
+  $('role-admin').addEventListener('click', () => showScreen('screen-admin-login'));
+  $('role-teacher').addEventListener('click', () => showScreen('screen-teacher-login'));
+  $('role-student').addEventListener('click', () => showScreen('screen-student-login'));
+
+  function enterDashboard(){
+    $('welcome-role').textContent = { admin:'ADMIN', teacher:'ÖĞRETMEN', student:'ÖĞRENCİ' }[session.role];
+    $('welcome-name').textContent = 'Merhaba, ' + session.name;
+    showScreen('screen-dashboard-placeholder');
+  }
+
+  // --- Admin girişi ---
+  $('form-admin-login').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pin = $('admin-pin').value.trim();
+    const errEl = $('admin-login-error');
+    const btn = e.target.querySelector('button[type=submit]');
+    errEl.textContent = '';
+    setLoading(btn, true, 'Giriş Yap');
+    const { data, error } = await sb.rpc('admin_login', { p_pin: pin });
+    setLoading(btn, false, 'Giriş Yap');
+    if (error || !data || data.error) { errEl.textContent = 'PIN hatalı. Tekrar dene.'; return; }
+    session = { role: 'admin', id: data.id, secret: pin, name: data.name };
+    enterDashboard();
+  });
+
+  // --- Öğretmen girişi ---
+  $('form-teacher-login').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pin = $('teacher-pin').value.trim();
+    const remember = $('teacher-remember').checked;
+    const errEl = $('teacher-login-error');
+    const btn = e.target.querySelector('button[type=submit]');
+    errEl.textContent = '';
+    setLoading(btn, true, 'Giriş Yap');
+    const { data, error } = await sb.rpc('teacher_login', { p_pin: pin });
+    setLoading(btn, false, 'Giriş Yap');
+    if (error || !data || data.error) { errEl.textContent = 'PIN hatalı. Tekrar dene.'; return; }
+    session = { role: 'teacher', id: data.id, secret: pin, name: data.name };
+    if (remember) localStorage.setItem(LS_TEACHER, JSON.stringify({ id: data.id, secret: pin, name: data.name }));
+    enterDashboard();
+  });
+
+  // --- Öğrenci girişi ---
+  $('form-student-login').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = $('student-username').value.trim();
+    const password = $('student-password').value;
+    const remember = $('student-remember').checked;
+    const errEl = $('student-login-error');
+    const btn = e.target.querySelector('button[type=submit]');
+    errEl.textContent = '';
+    setLoading(btn, true, 'Giriş Yap');
+    const { data, error } = await sb.rpc('student_login', { p_username: username, p_password: password });
+    setLoading(btn, false, 'Giriş Yap');
+    if (error || !data || data.error) { errEl.textContent = 'Kullanıcı adı veya şifre hatalı.'; return; }
+    session = { role: 'student', id: data.id, secret: password, name: data.name };
+    if (remember) localStorage.setItem(LS_STUDENT, JSON.stringify({ id: data.id, secret: password, name: data.name }));
+    enterDashboard();
+  });
+
+  // --- Çıkış ---
+  $('btn-logout').addEventListener('click', () => {
+    if (session && session.role === 'student') {
+      if (!confirm('Çıkış yapmak istediğine emin misin?')) return;
+    }
+    localStorage.removeItem(LS_TEACHER);
+    localStorage.removeItem(LS_STUDENT);
+    session = null;
+    showScreen('screen-role');
+  });
+
+  // --- Cihazda hatırlanan oturumu otomatik aç ---
+  (async function tryAutoLogin(){
+    const t = localStorage.getItem(LS_TEACHER);
+    if (t) {
+      try {
+        const { id, secret } = JSON.parse(t);
+        const { data } = await sb.rpc('teacher_login', { p_pin: secret });
+        if (data && !data.error && data.id === id) {
+          session = { role: 'teacher', id, secret, name: data.name };
+          enterDashboard();
+          return;
+        }
+      } catch (e) {}
+      localStorage.removeItem(LS_TEACHER);
+    }
+    const s = localStorage.getItem(LS_STUDENT);
+    if (s) {
+      try {
+        const { id, secret } = JSON.parse(s);
+        const { data } = await sb.rpc('student_get_data', { p_student_id: id, p_password: secret });
+        if (data && !data.error) {
+          session = { role: 'student', id, secret, name: data.name };
+          enterDashboard();
+          return;
+        }
+      } catch (e) {}
+      localStorage.removeItem(LS_STUDENT);
+    }
+  })();
+</script>
+</body>
+</html>
