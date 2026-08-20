@@ -1014,17 +1014,21 @@
       const lastMonthStart = new Date(now.getFullYear(), now.getMonth()-1, 1);
       const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23,59,59);
 
+      const dayLabel = (d) => d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+      const monthLabel = (d) => d.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
+      const rangeLabel = (start, end) => start.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' }) + ' – ' + end.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+
       const wsSummary = wb.addWorksheet('Özet');
-      wsSummary.columns = [{ header: 'Alan', key: 'k', width: 22 }, { header: 'Değer', key: 'v', width: 22 }];
+      wsSummary.columns = [{ header: 'Alan', key: 'k', width: 26 }, { header: 'Değer', key: 'v', width: 22 }];
       wsSummary.addRows([
         { k: 'Ad Soyad', v: currentStudent.name },
         { k: 'Kullanıcı Adı', v: currentStudent.username },
         { k: 'Günlük Hedef', v: currentStudent.daily_target != null ? currentStudent.daily_target : '-' },
-        { k: 'Bugün', v: sumEntries(entries, d => d === today) },
-        { k: 'Bu Hafta', v: sumEntries(entries, d => inRange(d, wStart, wEnd)) },
-        { k: 'Geçen Hafta', v: sumEntries(entries, d => inRange(d, lwStart, lwEnd)) },
-        { k: 'Bu Ay', v: sumEntries(entries, d => inRange(d, monthStart, monthEnd)) },
-        { k: 'Geçen Ay', v: sumEntries(entries, d => inRange(d, lastMonthStart, lastMonthEnd)) },
+        { k: dayLabel(now), v: sumEntries(entries, d => d === today) },
+        { k: rangeLabel(wStart, wEnd), v: sumEntries(entries, d => inRange(d, wStart, wEnd)) },
+        { k: rangeLabel(lwStart, lwEnd), v: sumEntries(entries, d => inRange(d, lwStart, lwEnd)) },
+        { k: monthLabel(monthStart), v: sumEntries(entries, d => inRange(d, monthStart, monthEnd)) },
+        { k: monthLabel(lastMonthStart), v: sumEntries(entries, d => inRange(d, lastMonthStart, lastMonthEnd)) },
         { k: 'Tüm Zamanlar', v: entries.reduce((sum,e) => sum + entryTotal(e), 0) }
       ]);
       wsSummary.getRow(1).font = { bold: true };
