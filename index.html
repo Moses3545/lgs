@@ -235,10 +235,12 @@
   <section id="screen-teacher-login" class="screen">
     <div class="card">
       <div class="eyebrow">Öğretmen Girişi</div>
-      <h2>PIN'ini gir</h2>
+      <h2>Hesabına gir</h2>
       <form id="form-teacher-login">
-        <label for="teacher-pin">PIN</label>
-        <input type="password" id="teacher-pin" class="pin-input" autocomplete="off" required>
+        <label for="teacher-username">Kullanıcı Adı</label>
+        <input type="text" id="teacher-username" autocomplete="off" required>
+        <label for="teacher-password">Şifre</label>
+        <input type="password" id="teacher-password" autocomplete="off" required>
         <div class="checkbox-row">
           <input type="checkbox" id="teacher-remember" checked>
           <label for="teacher-remember">Bu cihazda beni hatırla</label>
@@ -286,9 +288,11 @@
       <form id="form-add-teacher">
         <label for="new-teacher-name">Ad Soyad</label>
         <input type="text" id="new-teacher-name" autocomplete="off" required>
-        <label for="new-teacher-pin">PIN</label>
+        <label for="new-teacher-username">Kullanıcı Adı</label>
+        <input type="text" id="new-teacher-username" autocomplete="off" required>
+        <label for="new-teacher-password">Şifre</label>
         <div class="input-with-button">
-          <input type="text" id="new-teacher-pin" class="pin-input" autocomplete="off" required>
+          <input type="text" id="new-teacher-password" class="pin-input" autocomplete="off" required>
           <button type="button" class="btn-inline" id="btn-generate-pin">Otomatik Ata</button>
         </div>
         <div class="error-text" id="add-teacher-error"></div>
@@ -485,7 +489,7 @@
     for (let i = 0; i < (length || 6); i++) out += chars[Math.floor(Math.random() * chars.length)];
     return out;
   }
-  $('btn-generate-pin').addEventListener('click', () => { $('new-teacher-pin').value = generatePin(6); });
+  $('btn-generate-pin').addEventListener('click', () => { $('new-teacher-password').value = generatePin(8); });
   $('btn-generate-student-password').addEventListener('click', () => { $('new-student-password').value = generatePin(8); });
 
   // ============================================================
@@ -523,9 +527,11 @@
           <div class="card teacher-card" data-id="${t.id}">
             <label>Ad Soyad</label>
             <input type="text" class="edit-name-input" value="${escapeHtml(t.name)}">
-            <label>PIN</label>
+            <label>Kullanıcı Adı</label>
+            <input type="text" class="edit-username-input" value="${escapeHtml(t.username)}">
+            <label>Şifre</label>
             <div class="input-with-button">
-              <input type="text" class="edit-pin-input pin-input" value="${escapeHtml(t.pin)}">
+              <input type="text" class="edit-password-input pin-input" value="${escapeHtml(t.password)}">
               <button type="button" class="btn-inline btn-generate-pin-edit">Otomatik Ata</button>
             </div>
             <div class="error-text edit-error"></div>
@@ -543,7 +549,8 @@
               <div class="hint-text">${t.student_count} öğrenci · ${fmtDate(t.created_at)}</div>
             </div>
           </div>
-          <div class="teacher-pin-row"><span class="eyebrow">PIN</span><span class="mono">${escapeHtml(t.pin)}</span></div>
+          <div class="teacher-pin-row"><span class="eyebrow">Kullanıcı Adı</span><span class="mono">${escapeHtml(t.username)}</span></div>
+          <div class="teacher-pin-row"><span class="eyebrow">Şifre</span><span class="mono">${escapeHtml(t.password)}</span></div>
           <div class="teacher-actions">
             <button type="button" class="btn-small btn-edit-teacher">Düzenle</button>
             <button type="button" class="btn-small btn-delete-teacher">Sil</button>
@@ -560,22 +567,23 @@
       renderTeacherList();
     }));
     listEl.querySelectorAll('.btn-generate-pin-edit').forEach(b => b.addEventListener('click', () => {
-      b.closest('.teacher-card').querySelector('.edit-pin-input').value = generatePin(6);
+      b.closest('.teacher-card').querySelector('.edit-password-input').value = generatePin(8);
     }));
     listEl.querySelectorAll('.btn-save-teacher').forEach(b => b.addEventListener('click', async () => {
       const card = b.closest('.teacher-card');
       const id = card.dataset.id;
       const name = card.querySelector('.edit-name-input').value.trim();
-      const pin = card.querySelector('.edit-pin-input').value.trim();
+      const username = card.querySelector('.edit-username-input').value.trim();
+      const password = card.querySelector('.edit-password-input').value.trim();
       const errEl = card.querySelector('.edit-error');
       errEl.textContent = '';
       b.disabled = true; b.textContent = 'Kaydediliyor…';
       const { data, error } = await sb.rpc('admin_update_teacher', {
         p_admin_id: session.id, p_pin: session.secret, p_teacher_id: id,
-        p_name: name, p_new_pin: pin
+        p_name: name, p_new_username: username, p_new_password: password
       });
       if (error || !data || data.error) {
-        errEl.textContent = data && data.error === 'pin_taken' ? 'Bu PIN başka bir öğretmende kayıtlı.' : 'Kaydedilemedi, tekrar dene.';
+        errEl.textContent = data && data.error === 'username_taken' ? 'Bu kullanıcı adı başka bir öğretmende kayıtlı.' : 'Kaydedilemedi, tekrar dene.';
         b.disabled = false; b.textContent = 'Kaydet';
         return;
       }
@@ -596,15 +604,16 @@
   $('form-add-teacher').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = $('new-teacher-name').value.trim();
-    const pin = $('new-teacher-pin').value.trim();
+    const username = $('new-teacher-username').value.trim();
+    const password = $('new-teacher-password').value.trim();
     const errEl = $('add-teacher-error');
     const btn = e.target.querySelector('button[type=submit]');
     errEl.textContent = '';
     setLoading(btn, true, 'Ekle');
-    const { data, error } = await sb.rpc('admin_add_teacher', { p_admin_id: session.id, p_pin: session.secret, p_name: name, p_teacher_pin: pin });
+    const { data, error } = await sb.rpc('admin_add_teacher', { p_admin_id: session.id, p_pin: session.secret, p_name: name, p_username: username, p_password: password });
     setLoading(btn, false, 'Ekle');
     if (error || !data || data.error) {
-      errEl.textContent = data && data.error === 'pin_taken' ? 'Bu PIN zaten kullanılıyor, başka bir PIN dene.' : 'Eklenemedi, tekrar dene.';
+      errEl.textContent = data && data.error === 'username_taken' ? 'Bu kullanıcı adı zaten alınmış, başka bir tane dene.' : 'Eklenemedi, tekrar dene.';
       return;
     }
     e.target.reset();
@@ -646,7 +655,7 @@
 
   async function refreshStudents(){
     const listEl = $('student-list');
-    const { data, error } = await sb.rpc('teacher_get_data', { p_teacher_id: session.id, p_pin: session.secret });
+    const { data, error } = await sb.rpc('teacher_get_data', { p_teacher_id: session.id, p_password: session.secret });
     if (error || !data || data.error) {
       listEl.innerHTML = '<p class="error-text">Öğrenci listesi yüklenemedi. Sayfayı yenile.</p>';
       return;
@@ -698,7 +707,7 @@
       const s = studentsData.find(x => x.id === id);
       if (!confirm(s.name + ' adlı öğrenciyi silmek istediğine emin misin? Tüm kayıtları da silinecek.')) return;
       b.disabled = true; b.textContent = 'Siliniyor…';
-      const { data, error } = await sb.rpc('teacher_delete_student', { p_teacher_id: session.id, p_pin: session.secret, p_student_id: id });
+      const { data, error } = await sb.rpc('teacher_delete_student', { p_teacher_id: session.id, p_password: session.secret, p_student_id: id });
       if (error || !data || data.error) { alert('Silinemedi, tekrar dene.'); b.disabled = false; b.textContent = 'Sil'; return; }
       await refreshStudents();
     }));
@@ -716,8 +725,8 @@
     errEl.textContent = '';
     setLoading(btn, true, 'Ekle');
     const { data, error } = await sb.rpc('teacher_add_student', {
-      p_teacher_id: session.id, p_pin: session.secret, p_name: name,
-      p_username: username, p_password: password, p_daily_target: target
+      p_teacher_id: session.id, p_password: session.secret, p_name: name,
+      p_username: username, p_student_password: password, p_daily_target: target
     });
     setLoading(btn, false, 'Ekle');
     if (error || !data || data.error) {
@@ -839,7 +848,7 @@
     const btn = $('btn-save-entry');
     setLoading(btn, true, 'Kaydet');
     const { data, error } = await sb.rpc('teacher_save_entry', {
-      p_teacher_id: session.id, p_pin: session.secret, p_student_id: currentStudent.id, p_date: date, p_subjects: subjects
+      p_teacher_id: session.id, p_password: session.secret, p_student_id: currentStudent.id, p_date: date, p_subjects: subjects
     });
     setLoading(btn, false, 'Kaydet');
     if (error || !data || data.error) { errEl.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
@@ -861,7 +870,7 @@
     const btn = $('btn-save-credentials');
     setLoading(btn, true, 'Kaydet');
     const { data, error } = await sb.rpc('teacher_update_credentials', {
-      p_teacher_id: session.id, p_pin: session.secret, p_student_id: currentStudent.id, p_username: username, p_password: password
+      p_teacher_id: session.id, p_password: session.secret, p_student_id: currentStudent.id, p_username: username, p_student_password: password
     });
     setLoading(btn, false, 'Kaydet');
     if (error || !data || data.error) {
@@ -881,7 +890,7 @@
     const btn = $('btn-save-target');
     setLoading(btn, true, 'Kaydet');
     const { data, error } = await sb.rpc('teacher_update_target', {
-      p_teacher_id: session.id, p_pin: session.secret, p_student_id: currentStudent.id, p_daily_target: target
+      p_teacher_id: session.id, p_password: session.secret, p_student_id: currentStudent.id, p_daily_target: target
     });
     setLoading(btn, false, 'Kaydet');
     if (error || !data || data.error) { errEl.textContent = 'Kaydedilemedi.'; return; }
@@ -895,7 +904,7 @@
     const btn = $('btn-save-plan');
     setLoading(btn, true, 'Kaydet');
     const { data, error } = await sb.rpc('teacher_save_weekly_plan', {
-      p_teacher_id: session.id, p_pin: session.secret, p_student_id: currentStudent.id, p_content: content
+      p_teacher_id: session.id, p_password: session.secret, p_student_id: currentStudent.id, p_content: content
     });
     setLoading(btn, false, 'Kaydet');
     if (!error && data && !data.error) currentStudent.weekly_plan = content;
@@ -906,7 +915,7 @@
     const btn = $('btn-save-guidance');
     setLoading(btn, true, 'Kaydet');
     const { data, error } = await sb.rpc('teacher_save_guidance_note', {
-      p_teacher_id: session.id, p_pin: session.secret, p_student_id: currentStudent.id, p_content: content
+      p_teacher_id: session.id, p_password: session.secret, p_student_id: currentStudent.id, p_content: content
     });
     setLoading(btn, false, 'Kaydet');
     if (!error && data && !data.error) currentStudent.guidance_note = content;
@@ -916,7 +925,7 @@
     if (!confirm(currentStudent.name + ' adlı öğrenciyi silmek istediğine emin misin? Tüm kayıtları da silinecek.')) return;
     const btn = $('btn-delete-student');
     setLoading(btn, true, 'Öğrenciyi Sil');
-    const { data, error } = await sb.rpc('teacher_delete_student', { p_teacher_id: session.id, p_pin: session.secret, p_student_id: currentStudent.id });
+    const { data, error } = await sb.rpc('teacher_delete_student', { p_teacher_id: session.id, p_password: session.secret, p_student_id: currentStudent.id });
     if (error || !data || data.error) { alert('Silinemedi, tekrar dene.'); setLoading(btn, false, 'Öğrenciyi Sil'); return; }
     showScreen('screen-teacher-dashboard');
     await refreshStudents();
@@ -940,17 +949,18 @@
   // --- Öğretmen girişi ---
   $('form-teacher-login').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const pin = $('teacher-pin').value.trim();
+    const username = $('teacher-username').value.trim();
+    const password = $('teacher-password').value;
     const remember = $('teacher-remember').checked;
     const errEl = $('teacher-login-error');
     const btn = e.target.querySelector('button[type=submit]');
     errEl.textContent = '';
     setLoading(btn, true, 'Giriş Yap');
-    const { data, error } = await sb.rpc('teacher_login', { p_pin: pin });
+    const { data, error } = await sb.rpc('teacher_login', { p_username: username, p_password: password });
     setLoading(btn, false, 'Giriş Yap');
-    if (error || !data || data.error) { errEl.textContent = 'PIN hatalı. Tekrar dene.'; return; }
-    session = { role: 'teacher', id: data.id, secret: pin, name: data.name };
-    if (remember) localStorage.setItem(LS_TEACHER, JSON.stringify({ id: data.id, secret: pin, name: data.name }));
+    if (error || !data || data.error) { errEl.textContent = 'Kullanıcı adı veya şifre hatalı.'; return; }
+    session = { role: 'teacher', id: data.id, secret: password, name: data.name };
+    if (remember) localStorage.setItem(LS_TEACHER, JSON.stringify({ id: data.id, username: username, secret: password, name: data.name }));
     enterDashboard();
   });
 
@@ -988,8 +998,8 @@
     const t = localStorage.getItem(LS_TEACHER);
     if (t) {
       try {
-        const { id, secret } = JSON.parse(t);
-        const { data } = await sb.rpc('teacher_login', { p_pin: secret });
+        const { id, username, secret } = JSON.parse(t);
+        const { data } = await sb.rpc('teacher_login', { p_username: username, p_password: secret });
         if (data && !data.error && data.id === id) {
           session = { role: 'teacher', id, secret, name: data.name };
           enterDashboard();
