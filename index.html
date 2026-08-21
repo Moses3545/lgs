@@ -240,6 +240,11 @@
     text-align:left; position:sticky; left:0; background:var(--paper); font-family:'IBM Plex Mono',monospace;
   }
   .pivot-table td.pivot-total, .pivot-table th.pivot-total{ font-weight:700; color:var(--green); }
+  .activity-date-group{ margin-bottom:22px; }
+  .activity-date-heading{
+    font-family:'Fraunces', serif; font-weight:600; font-size:15px;
+    margin-bottom:8px; color:var(--ink);
+  }
 </style>
 </head>
 <body>
@@ -800,37 +805,44 @@
     el.innerHTML = logins.map(l => `<div class="login-item"><span>${fmtDateTime(l)}</span></div>`).join('');
   }
 
-  function buildDayStudentPivot(){
+  function buildDateGroupedActivity(){
     const students = activityData.students || [];
     const dateSet = new Set();
     students.forEach(s => (s.entries || []).forEach(e => dateSet.add(e.date)));
     const dates = Array.from(dateSet).sort().reverse();
-    const rows = dates.map(date => {
-      const cells = students.map(s => {
+
+    const groups = dates.map(date => {
+      const studentRows = [];
+      students.forEach(s => {
         const entry = (s.entries || []).find(e => e.date === date);
-        return entryTotal(entry);
+        if (!entry) return;
+        studentRows.push({ studentName: s.name, subjects: entry.subjects || {}, total: entryTotal(entry) });
       });
-      const dayTotal = cells.reduce((a,b) => a+b, 0);
-      return { date, cells, dayTotal };
+      return { date, studentRows };
     });
-    return { students, dates, rows };
+    return { students, groups };
   }
 
   function renderActivityPivot(){
-    const { students, rows } = buildDayStudentPivot();
+    const { students, groups } = buildDateGroupedActivity();
     const el = $('activity-pivot-table');
     if (students.length === 0) { el.innerHTML = '<p class="empty-state">Bu öğretmenin henüz öğrencisi yok.</p>'; return; }
-    if (rows.length === 0) { el.innerHTML = '<p class="empty-state">Henüz hiç soru girişi yok.</p>'; return; }
+    if (groups.length === 0) { el.innerHTML = '<p class="empty-state">Henüz hiç soru girişi yok.</p>'; return; }
 
-    let html = '<table class="pivot-table"><thead><tr><th>Tarih</th>';
-    students.forEach(s => { html += `<th>${escapeHtml(s.name)}</th>`; });
-    html += '<th class="pivot-total">Gün Toplamı</th></tr></thead><tbody>';
-    rows.forEach(r => {
-      html += `<tr><td>${fmtDate(r.date)}</td>`;
-      r.cells.forEach(c => { html += `<td>${c}</td>`; });
-      html += `<td class="pivot-total">${r.dayTotal}</td></tr>`;
+    let html = '';
+    groups.forEach(g => {
+      html += `<div class="activity-date-group">
+        <div class="activity-date-heading">${fmtDate(g.date)}</div>
+        <div class="table-scroll"><table class="pivot-table"><thead><tr><th>Öğrenci</th>`;
+      SUBJECTS.forEach(subj => { html += `<th>${escapeHtml(subj)}</th>`; });
+      html += `<th class="pivot-total">Toplam</th></tr></thead><tbody>`;
+      g.studentRows.forEach(row => {
+        html += `<tr><td>${escapeHtml(row.studentName)}</td>`;
+        SUBJECTS.forEach(subj => { html += `<td>${row.subjects[subj] || 0}</td>`; });
+        html += `<td class="pivot-total">${row.total}</td></tr>`;
+      });
+      html += `</tbody></table></div></div>`;
     });
-    html += '</tbody></table>';
     el.innerHTML = html;
   }
 
@@ -841,15 +853,18 @@
     try {
       await ensureSheetJS();
       const wb = XLSX.utils.book_new();
-      const { students, rows } = buildDayStudentPivot();
+      const { groups } = buildDateGroupedActivity();
 
-      const pivotRows = rows.map(r => {
-        const row = { 'Tarih': r.date };
-        students.forEach((s, i) => { row[s.name] = r.cells[i]; });
-        row['Gün Toplamı'] = r.dayTotal;
-        return row;
+      const aoa = [];
+      groups.forEach(g => {
+        aoa.push([fmtDate(g.date)]);
+        aoa.push(['Öğrenci', ...SUBJECTS, 'Toplam']);
+        g.studentRows.forEach(row => {
+          aoa.push([row.studentName, ...SUBJECTS.map(s => row.subjects[s] || 0), row.total]);
+        });
+        aoa.push([]);
       });
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pivotRows), 'Günlük Aktivite');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Günlük Aktivite');
 
       const loginRows = (activityData.logins || []).map(l => ({ 'Giriş Zamanı': fmtDateTime(l) }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(loginRows), 'Giriş Geçmişi');
