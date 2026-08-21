@@ -137,7 +137,8 @@
   }
   .section-label{ margin:24px 0 10px; }
   .teacher-card{ padding:18px 18px 18px 30px; }
-  .teacher-card-head{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+  .teacher-card-head{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:6px; margin-bottom:8px; }
+  .teacher-card-head > div:first-child{ min-width:0; flex:1 1 140px; }
   .teacher-pin-row{
     display:flex; align-items:center; gap:8px; justify-content:space-between;
     background:var(--cream); border-radius:5px; padding:8px 12px; margin:10px 0; font-size:14px;
@@ -745,6 +746,13 @@
     return fmtDate(dateStr);
   }
 
+  function fmtDateTime(iso){
+    if (!iso) return 'Hiç giriş yapılmadı';
+    const d = new Date(iso);
+    return d.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' }) +
+      ' · ' + d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+  }
+
   async function refreshStudents(){
     const listEl = $('student-list');
     const { data, error } = await sb.rpc('teacher_get_data', { p_teacher_id: session.id, p_password: session.secret });
@@ -782,7 +790,7 @@
               <h3>${escapeHtml(s.name)}</h3>
               <div class="hint-text">${escapeHtml(s.username)}${s.daily_target != null ? ' · Hedef: ' + s.daily_target : ''}</div>
             </div>
-            <span class="status-pill ${isToday ? 'status-ok' : 'status-warn'}">${relDateLabel(s.last_entry_date)}</span>
+            <span class="status-pill ${isToday ? 'status-ok' : 'status-warn'}">${fmtDateTime(s.last_saved_at)}</span>
           </div>
           <div class="teacher-actions">
             <button type="button" class="btn-small btn-edit-teacher btn-open-detail">Detay</button>
