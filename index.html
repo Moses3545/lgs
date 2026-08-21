@@ -220,6 +220,26 @@
     background:transparent; border:none; color:var(--red); font-size:12px; font-weight:600;
     cursor:pointer; padding:4px 6px; flex-shrink:0;
   }
+
+  .login-item{
+    display:flex; justify-content:space-between; padding:8px 0;
+    border-bottom:1px solid rgba(42,42,36,.08); font-size:13px;
+  }
+  .login-item:last-child{ border-bottom:none; }
+
+  .table-scroll{ overflow-x:auto; margin-top:14px; -webkit-overflow-scrolling:touch; }
+  .pivot-table{ border-collapse:collapse; font-size:12.5px; white-space:nowrap; }
+  .pivot-table th, .pivot-table td{
+    padding:7px 10px; border-bottom:1px solid rgba(42,42,36,.08); text-align:right;
+  }
+  .pivot-table th{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase;
+    color:var(--muted); text-align:right; position:sticky; top:0; background:var(--paper);
+  }
+  .pivot-table td:first-child, .pivot-table th:first-child{
+    text-align:left; position:sticky; left:0; background:var(--paper); font-family:'IBM Plex Mono',monospace;
+  }
+  .pivot-table td.pivot-total, .pivot-table th.pivot-total{ font-weight:700; color:var(--green); }
 </style>
 </head>
 <body>
@@ -332,6 +352,30 @@
 
     <h3 class="section-label">Öğretmenler</h3>
     <div id="teacher-list"><p class="empty-state">Yükleniyor…</p></div>
+  </section>
+
+  <!-- ADMIN — ÖĞRETMEN AKTİVİTESİ (salt-okunur) -->
+  <section id="screen-admin-activity" class="screen">
+    <button type="button" class="btn btn-ghost" id="activity-back" style="margin-top:0;">&larr; Öğretmen listesine dön</button>
+    <div class="top-bar">
+      <div>
+        <div class="eyebrow">SALT-OKUNUR GÖRÜNÜM</div>
+        <h2 id="activity-teacher-name"></h2>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Giriş Geçmişi</h3>
+      <p class="hint-text" style="margin-top:-8px;">En son 50 giriş, en yeniden eskiye.</p>
+      <div id="activity-logins"></div>
+    </div>
+
+    <div class="card">
+      <h3>Öğrenciler — Gün Gün Toplam Soru</h3>
+      <p class="hint-text" style="margin-top:-8px;">Her hücre, o öğrencinin o gün tüm derslerden çözdüğü toplam soru sayısı. Bu görünümden hiçbir veri değiştirilemez.</p>
+      <button type="button" class="btn btn-primary" id="btn-export-activity">Excel Olarak İndir</button>
+      <div class="table-scroll" id="activity-pivot-table"></div>
+    </div>
   </section>
 
   <!-- ÖĞRETMEN PANELİ -->
@@ -645,11 +689,16 @@
           <div class="teacher-pin-row"><span class="eyebrow">Kullanıcı Adı</span><span class="mono">${escapeHtml(t.username)}</span></div>
           <div class="teacher-pin-row"><span class="eyebrow">Şifre</span><span class="mono">${escapeHtml(t.password)}</span></div>
           <div class="teacher-actions">
+            <button type="button" class="btn-small btn-view-activity">Öğrencileri Gör</button>
             <button type="button" class="btn-small btn-edit-teacher">Düzenle</button>
             <button type="button" class="btn-small btn-delete-teacher">Sil</button>
           </div>
         </div>`;
     }).join('');
+
+    listEl.querySelectorAll('.btn-view-activity').forEach(b => b.addEventListener('click', () => {
+      openTeacherActivity(b.closest('.teacher-card').dataset.id);
+    }));
 
     listEl.querySelectorAll('.btn-edit-teacher').forEach(b => b.addEventListener('click', () => {
       editingTeacherId = b.closest('.teacher-card').dataset.id;
@@ -716,6 +765,100 @@
   $('admin-logout').addEventListener('click', () => {
     session = null;
     showScreen('screen-role');
+  });
+
+  // ============================================================
+  // ADMIN — ÖĞRETMEN AKTİVİTESİ (salt-okunur)
+  // ============================================================
+  let activityData = null; // { teacher_name, logins, students }
+
+  async function openTeacherActivity(teacherId){
+    $('activity-teacher-name').textContent = 'Yükleniyor…';
+    $('activity-logins').innerHTML = '';
+    $('activity-pivot-table').innerHTML = '';
+    showScreen('screen-admin-activity');
+    const { data, error } = await sb.rpc('admin_get_teacher_activity', {
+      p_admin_id: session.id, p_pin: session.secret, p_teacher_id: teacherId
+    });
+    if (error || !data || data.error) {
+      $('activity-teacher-name').textContent = 'Yüklenemedi';
+      $('activity-logins').innerHTML = '<p class="error-text">Veriler alınamadı, tekrar dene.</p>';
+      return;
+    }
+    activityData = data;
+    $('activity-teacher-name').textContent = data.teacher_name;
+    renderActivityLogins();
+    renderActivityPivot();
+  }
+
+  $('activity-back').addEventListener('click', () => showScreen('screen-admin-dashboard'));
+
+  function renderActivityLogins(){
+    const logins = activityData.logins || [];
+    const el = $('activity-logins');
+    if (logins.length === 0) { el.innerHTML = '<p class="empty-state">Henüz giriş kaydı yok.</p>'; return; }
+    el.innerHTML = logins.map(l => `<div class="login-item"><span>${fmtDateTime(l)}</span></div>`).join('');
+  }
+
+  function buildDayStudentPivot(){
+    const students = activityData.students || [];
+    const dateSet = new Set();
+    students.forEach(s => (s.entries || []).forEach(e => dateSet.add(e.date)));
+    const dates = Array.from(dateSet).sort().reverse();
+    const rows = dates.map(date => {
+      const cells = students.map(s => {
+        const entry = (s.entries || []).find(e => e.date === date);
+        return entryTotal(entry);
+      });
+      const dayTotal = cells.reduce((a,b) => a+b, 0);
+      return { date, cells, dayTotal };
+    });
+    return { students, dates, rows };
+  }
+
+  function renderActivityPivot(){
+    const { students, rows } = buildDayStudentPivot();
+    const el = $('activity-pivot-table');
+    if (students.length === 0) { el.innerHTML = '<p class="empty-state">Bu öğretmenin henüz öğrencisi yok.</p>'; return; }
+    if (rows.length === 0) { el.innerHTML = '<p class="empty-state">Henüz hiç soru girişi yok.</p>'; return; }
+
+    let html = '<table class="pivot-table"><thead><tr><th>Tarih</th>';
+    students.forEach(s => { html += `<th>${escapeHtml(s.name)}</th>`; });
+    html += '<th class="pivot-total">Gün Toplamı</th></tr></thead><tbody>';
+    rows.forEach(r => {
+      html += `<tr><td>${fmtDate(r.date)}</td>`;
+      r.cells.forEach(c => { html += `<td>${c}</td>`; });
+      html += `<td class="pivot-total">${r.dayTotal}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+
+  $('btn-export-activity').addEventListener('click', async () => {
+    const btn = $('btn-export-activity');
+    const label = 'Excel Olarak İndir';
+    setLoading(btn, true, label);
+    try {
+      await ensureSheetJS();
+      const wb = XLSX.utils.book_new();
+      const { students, rows } = buildDayStudentPivot();
+
+      const pivotRows = rows.map(r => {
+        const row = { 'Tarih': r.date };
+        students.forEach((s, i) => { row[s.name] = r.cells[i]; });
+        row['Gün Toplamı'] = r.dayTotal;
+        return row;
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pivotRows), 'Günlük Aktivite');
+
+      const loginRows = (activityData.logins || []).map(l => ({ 'Giriş Zamanı': fmtDateTime(l) }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(loginRows), 'Giriş Geçmişi');
+
+      XLSX.writeFile(wb, (activityData.teacher_name || 'ogretmen').replace(/\s+/g,'-') + '-aktivite.xlsx');
+    } catch (e) {
+      alert('Excel oluşturulamadı, internet bağlantını kontrol edip tekrar dene.');
+    }
+    setLoading(btn, false, label);
   });
 
   // ============================================================
