@@ -227,6 +227,9 @@
   }
   .login-item:last-child{ border-bottom:none; }
 
+  .plan-note-block{ padding:14px 0; border-top:1px solid rgba(42,42,36,.08); }
+  .plan-note-block:first-child{ border-top:none; padding-top:0; }
+
   .table-scroll{ overflow-x:auto; margin-top:14px; -webkit-overflow-scrolling:touch; }
   .pivot-table{ border-collapse:collapse; font-size:12.5px; white-space:nowrap; }
   .pivot-table th, .pivot-table td{
@@ -376,12 +379,15 @@
       <p class="hint-text" style="margin-top:-8px;">Her hücre, o öğrencinin o gün tüm derslerden çözdüğü toplam soru sayısı. Bu görünümden hiçbir veri değiştirilemez.</p>
       <button type="button" class="btn btn-primary" id="btn-export-activity">Excel Olarak İndir</button>
       <div class="table-scroll" id="activity-pivot-table"></div>
+
+      <h3 style="margin-top:24px;">Plan ve Rehberlik Notları</h3>
+      <div id="activity-plans-notes"></div>
     </div>
 
     <div class="card">
-      <h3>Giriş Geçmişi</h3>
-      <p class="hint-text" style="margin-top:-8px;">En son 50 giriş, en yeniden eskiye.</p>
-      <div id="activity-logins"></div>
+      <h3>Son Giriş</h3>
+      <p id="activity-last-login" class="mono" style="font-size:16px; margin:0;"></p>
+      <button type="button" class="btn btn-primary" id="btn-export-logins">Giriş Geçmişini İndir</button>
     </div>
   </section>
 
@@ -832,31 +838,64 @@
 
   async function openTeacherActivity(teacherId){
     $('activity-teacher-name').textContent = 'Yükleniyor…';
-    $('activity-logins').innerHTML = '';
+    $('activity-last-login').textContent = '';
     $('activity-pivot-table').innerHTML = '';
+    $('activity-plans-notes').innerHTML = '';
     showScreen('screen-admin-activity');
     const { data, error } = await sb.rpc('admin_get_teacher_activity', {
       p_admin_id: session.id, p_pin: session.secret, p_teacher_id: teacherId
     });
     if (error || !data || data.error) {
       $('activity-teacher-name').textContent = 'Yüklenemedi';
-      $('activity-logins').innerHTML = '<p class="error-text">Veriler alınamadı, tekrar dene.</p>';
+      $('activity-last-login').textContent = 'Veriler alınamadı, tekrar dene.';
       return;
     }
     activityData = data;
     $('activity-teacher-name').textContent = data.teacher_name;
-    renderActivityLogins();
+    renderActivityLastLogin();
     renderActivityPivot();
+    renderActivityPlansNotes();
   }
 
   $('activity-back').addEventListener('click', () => showScreen('screen-admin-dashboard'));
 
-  function renderActivityLogins(){
+  function renderActivityLastLogin(){
     const logins = activityData.logins || [];
-    const el = $('activity-logins');
-    if (logins.length === 0) { el.innerHTML = '<p class="empty-state">Henüz giriş kaydı yok.</p>'; return; }
-    el.innerHTML = logins.map(l => `<div class="login-item"><span>${fmtDateTime(l)}</span></div>`).join('');
+    $('activity-last-login').textContent = logins.length > 0 ? fmtDateTime(logins[0]) : 'Hiç giriş yapılmadı';
   }
+
+  function renderActivityPlansNotes(){
+    const students = activityData.students || [];
+    const el = $('activity-plans-notes');
+    if (students.length === 0) { el.innerHTML = '<p class="empty-state">Öğrenci yok.</p>'; return; }
+    el.innerHTML = students.map(s => `
+      <div class="plan-note-block">
+        <h3>${escapeHtml(s.name)}</h3>
+        <div class="eyebrow">Haftaya Dair Plan ve Öneriler</div>
+        <p class="readonly-text">${escapeHtml(s.weekly_plan && s.weekly_plan.trim() ? s.weekly_plan : '-')}</p>
+        <div class="eyebrow" style="margin-top:10px;">Rehberlik Görüş ve Öneriler</div>
+        <p class="readonly-text">${escapeHtml(s.guidance_note && s.guidance_note.trim() ? s.guidance_note : '-')}</p>
+      </div>`).join('');
+  }
+
+  $('btn-export-logins').addEventListener('click', async () => {
+    const btn = $('btn-export-logins');
+    const label = 'Giriş Geçmişini İndir';
+    setLoading(btn, true, label);
+    try {
+      await ensureSheetJS();
+      const wb = XLSX.utils.book_new();
+      const logins = activityData.logins || [];
+      const loginRows = logins.length > 0
+        ? logins.map(l => ({ 'Giriş Zamanı': fmtDateTime(l) }))
+        : [{ 'Giriş Zamanı': 'Henüz giriş kaydı yok.' }];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(loginRows), 'Giriş Geçmişi');
+      XLSX.writeFile(wb, (activityData.teacher_name || 'ogretmen').replace(/\s+/g,'-') + '-giris-gecmisi.xlsx');
+    } catch (e) {
+      alert('Excel oluşturulamadı, tekrar dene.');
+    }
+    setLoading(btn, false, label);
+  });
 
   function buildDateGroupedActivity(){
     const students = activityData.students || [];
@@ -915,48 +954,35 @@
       }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(studentsRows), 'Öğrenciler');
 
-      const subjectTotals = {};
-      SUBJECTS.forEach(subj => {
-        subjectTotals[subj] = {};
-        students.forEach(s => { subjectTotals[subj][s.name] = 0; });
-      });
-      students.forEach(s => {
-        (s.entries || []).forEach(e => {
-          Object.entries(e.subjects || {}).forEach(([subj, count]) => {
-            if (!(subj in subjectTotals)) {
-              subjectTotals[subj] = {};
-              students.forEach(st => { subjectTotals[subj][st.name] = 0; });
-            }
-            subjectTotals[subj][s.name] = (subjectTotals[subj][s.name] || 0) + (Number(count) || 0);
-          });
+      const { groups } = buildDateGroupedActivity();
+      const entryAoa = [];
+      groups.forEach(g => {
+        entryAoa.push([fmtDate(g.date)]);
+        entryAoa.push(['Öğrenci', ...SUBJECTS, 'Toplam']);
+        g.studentRows.forEach(row => {
+          entryAoa.push([row.studentName, ...SUBJECTS.map(s => row.subjects[s] || 0), row.total]);
         });
+        entryAoa.push([]);
       });
-      const subjectPivotRows = Object.keys(subjectTotals).map(subj => {
-        const row = { 'Ders': subj };
-        students.forEach(s => { row[s.name] = subjectTotals[subj][s.name] || 0; });
-        return row;
-      });
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(subjectPivotRows), 'Günlük Sorular');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(entryAoa), 'Günlük Sorular');
 
-      const denemeRows = [];
+      const denemeGroupMap = new Map();
       students.forEach(s => {
         (s.denemeler || []).forEach(d => {
-          denemeRows.push({ 'Öğrenci': s.name, 'Deneme': d.name, 'Tarih': d.date, 'Puan': d.score });
+          const key = d.name + '|' + d.date;
+          if (!denemeGroupMap.has(key)) denemeGroupMap.set(key, { name: d.name, date: d.date, rows: [] });
+          denemeGroupMap.get(key).rows.push({ name: s.name, score: d.score });
         });
       });
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(denemeRows), 'Denemeler');
-
-      const { groups } = buildDateGroupedActivity();
-      const aoa = [];
-      groups.forEach(g => {
-        aoa.push([fmtDate(g.date)]);
-        aoa.push(['Öğrenci', ...SUBJECTS, 'Toplam']);
-        g.studentRows.forEach(row => {
-          aoa.push([row.studentName, ...SUBJECTS.map(s => row.subjects[s] || 0), row.total]);
-        });
-        aoa.push([]);
+      const denemeGroups = Array.from(denemeGroupMap.values()).sort((a,b) => a.date.localeCompare(b.date));
+      const denemeAoa = [];
+      denemeGroups.forEach(g => {
+        denemeAoa.push([g.name, fmtDate(g.date)]);
+        denemeAoa.push(['Öğrenci', 'Puan']);
+        g.rows.forEach(r => denemeAoa.push([r.name, r.score]));
+        denemeAoa.push([]);
       });
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Günlük Aktivite (Gün Gün)');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(denemeAoa), 'Denemeler');
 
       XLSX.writeFile(wb, (activityData.teacher_name || 'ogretmen').replace(/\s+/g,'-') + '-aktivite.xlsx');
     } catch (e) {
