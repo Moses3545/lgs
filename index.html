@@ -338,6 +338,8 @@
       <button type="button" class="btn-icon" id="admin-logout">Çıkış</button>
     </div>
 
+    <button type="button" class="btn btn-primary" id="btn-export-all-students" style="margin-top:0; margin-bottom:16px;">Tüm Öğrencileri (Bütün Öğretmenler) Excel'e Aktar</button>
+
     <div class="card">
       <h3>Yeni Öğretmen Ekle</h3>
       <form id="form-add-teacher">
@@ -370,16 +372,16 @@
     </div>
 
     <div class="card">
-      <h3>Giriş Geçmişi</h3>
-      <p class="hint-text" style="margin-top:-8px;">En son 50 giriş, en yeniden eskiye.</p>
-      <div id="activity-logins"></div>
-    </div>
-
-    <div class="card">
       <h3>Öğrenciler — Gün Gün Toplam Soru</h3>
       <p class="hint-text" style="margin-top:-8px;">Her hücre, o öğrencinin o gün tüm derslerden çözdüğü toplam soru sayısı. Bu görünümden hiçbir veri değiştirilemez.</p>
       <button type="button" class="btn btn-primary" id="btn-export-activity">Excel Olarak İndir</button>
       <div class="table-scroll" id="activity-pivot-table"></div>
+    </div>
+
+    <div class="card">
+      <h3>Giriş Geçmişi</h3>
+      <p class="hint-text" style="margin-top:-8px;">En son 50 giriş, en yeniden eskiye.</p>
+      <div id="activity-logins"></div>
     </div>
   </section>
 
@@ -433,7 +435,6 @@
     <div class="card">
       <div class="eyebrow">Son Giriş</div>
       <p id="detail-last-entry" class="mono" style="font-size:16px; margin:0;"></p>
-      <button type="button" class="btn btn-primary" id="btn-export-student">Excel Raporu İndir</button>
     </div>
 
     <div class="card">
@@ -486,6 +487,19 @@
     </div>
 
     <div class="card">
+      <h3>Günlük Hedef</h3>
+      <input type="number" id="detail-target" min="0" step="1">
+      <div class="error-text" id="detail-target-error"></div>
+      <button type="button" class="btn btn-primary" id="btn-save-target">Kaydet</button>
+    </div>
+
+    <div class="card">
+      <h3>Excel Olarak İndir</h3>
+      <p class="hint-text" style="margin-top:-8px;">Özet, grafikler, derslere göre dağılım, günlük sorular ve denemeleri içeren tam rapor.</p>
+      <button type="button" class="btn btn-primary" id="btn-export-student">Excel Raporu İndir</button>
+    </div>
+
+    <div class="card">
       <h3>Giriş Bilgileri</h3>
       <label for="detail-username">Kullanıcı Adı</label>
       <input type="text" id="detail-username">
@@ -493,13 +507,6 @@
       <input type="text" id="detail-password">
       <div class="error-text" id="detail-credentials-error"></div>
       <button type="button" class="btn btn-primary" id="btn-save-credentials">Kaydet</button>
-    </div>
-
-    <div class="card">
-      <h3>Günlük Hedef</h3>
-      <input type="number" id="detail-target" min="0" step="1">
-      <div class="error-text" id="detail-target-error"></div>
-      <button type="button" class="btn btn-primary" id="btn-save-target">Kaydet</button>
     </div>
 
     <div class="card">
@@ -772,6 +779,52 @@
     showScreen('screen-role');
   });
 
+  $('btn-export-all-students').addEventListener('click', async () => {
+    const btn = $('btn-export-all-students');
+    const label = "Tüm Öğrencileri (Bütün Öğretmenler) Excel'e Aktar";
+    setLoading(btn, true, label);
+    try {
+      const { data, error } = await sb.rpc('admin_get_all_students_data', { p_admin_id: session.id, p_pin: session.secret });
+      if (error || !data || data.error) { alert('Veriler alınamadı, tekrar dene.'); setLoading(btn, false, label); return; }
+      await ensureSheetJS();
+      const wb = XLSX.utils.book_new();
+      const students = data.students || [];
+
+      const studentsRows = students.map(s => ({
+        'Ad Soyad': s.name, 'Öğretmen': s.teacher_name,
+        'Günlük Hedef': s.daily_target != null ? s.daily_target : '',
+        'Son Giriş': s.last_entry_date || '(hiç girmedi)',
+        'Eklenme Tarihi': s.created_at ? s.created_at.slice(0,10) : '',
+        'Haftaya Dair Plan ve Öneriler': s.weekly_plan && s.weekly_plan.trim() ? s.weekly_plan : '-',
+        'Rehberlik Görüş ve Öneriler': s.guidance_note && s.guidance_note.trim() ? s.guidance_note : '-'
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(studentsRows), 'Öğrenciler');
+
+      const entryRows = [];
+      students.forEach(s => {
+        (s.entries || []).forEach(e => {
+          Object.entries(e.subjects || {}).forEach(([subj, count]) => {
+            entryRows.push({ 'Öğretmen': s.teacher_name, 'Öğrenci': s.name, 'Tarih': e.date, 'Ders': subj, 'Soru Sayısı': count });
+          });
+        });
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(entryRows), 'Günlük Sorular');
+
+      const denemeRows = [];
+      students.forEach(s => {
+        (s.denemeler || []).forEach(d => {
+          denemeRows.push({ 'Öğretmen': s.teacher_name, 'Öğrenci': s.name, 'Deneme': d.name, 'Tarih': d.date, 'Puan': d.score });
+        });
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(denemeRows), 'Denemeler');
+
+      XLSX.writeFile(wb, 'tum-ogrenciler-' + todayStr() + '.xlsx');
+    } catch (e) {
+      alert('Excel oluşturulamadı, internet bağlantını kontrol edip tekrar dene.');
+    }
+    setLoading(btn, false, label);
+  });
+
   // ============================================================
   // ADMIN — ÖĞRETMEN AKTİVİTESİ (salt-okunur)
   // ============================================================
@@ -853,8 +906,37 @@
     try {
       await ensureSheetJS();
       const wb = XLSX.utils.book_new();
-      const { groups } = buildDateGroupedActivity();
+      const students = activityData.students || [];
 
+      const studentsRows = students.map(s => ({
+        'Ad Soyad': s.name, 'Kullanıcı Adı': s.username,
+        'Günlük Hedef': s.daily_target != null ? s.daily_target : '',
+        'Son Giriş': s.last_entry_date || '(hiç girmedi)',
+        'Eklenme Tarihi': s.created_at ? s.created_at.slice(0,10) : '',
+        'Haftaya Dair Plan ve Öneriler': s.weekly_plan && s.weekly_plan.trim() ? s.weekly_plan : '-',
+        'Rehberlik Görüş ve Öneriler': s.guidance_note && s.guidance_note.trim() ? s.guidance_note : '-'
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(studentsRows), 'Öğrenciler');
+
+      const entryRows = [];
+      students.forEach(s => {
+        (s.entries || []).forEach(e => {
+          Object.entries(e.subjects || {}).forEach(([subj, count]) => {
+            entryRows.push({ 'Öğrenci': s.name, 'Tarih': e.date, 'Ders': subj, 'Soru Sayısı': count });
+          });
+        });
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(entryRows), 'Günlük Sorular');
+
+      const denemeRows = [];
+      students.forEach(s => {
+        (s.denemeler || []).forEach(d => {
+          denemeRows.push({ 'Öğrenci': s.name, 'Deneme': d.name, 'Tarih': d.date, 'Puan': d.score });
+        });
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(denemeRows), 'Denemeler');
+
+      const { groups } = buildDateGroupedActivity();
       const aoa = [];
       groups.forEach(g => {
         aoa.push([fmtDate(g.date)]);
@@ -864,10 +946,7 @@
         });
         aoa.push([]);
       });
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Günlük Aktivite');
-
-      const loginRows = (activityData.logins || []).map(l => ({ 'Giriş Zamanı': fmtDateTime(l) }));
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(loginRows), 'Giriş Geçmişi');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Günlük Aktivite (Gün Gün)');
 
       XLSX.writeFile(wb, (activityData.teacher_name || 'ogretmen').replace(/\s+/g,'-') + '-aktivite.xlsx');
     } catch (e) {
@@ -1021,10 +1100,12 @@
       const wb = XLSX.utils.book_new();
 
       const studentsRows = studentsData.map(s => ({
-        'Ad Soyad': s.name, 'Kullanıcı Adı': s.username, 'Şifre': s.password,
+        'Ad Soyad': s.name, 'Kullanıcı Adı': s.username,
         'Günlük Hedef': s.daily_target != null ? s.daily_target : '',
         'Son Giriş': s.last_entry_date || '(hiç girmedi)',
-        'Eklenme Tarihi': s.created_at ? s.created_at.slice(0,10) : ''
+        'Eklenme Tarihi': s.created_at ? s.created_at.slice(0,10) : '',
+        'Haftaya Dair Plan ve Öneriler': s.weekly_plan && s.weekly_plan.trim() ? s.weekly_plan : '-',
+        'Rehberlik Görüş ve Öneriler': s.guidance_note && s.guidance_note.trim() ? s.guidance_note : '-'
       }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(studentsRows), 'Öğrenciler');
 
@@ -1195,26 +1276,16 @@
         { k: rangeLabel(lwStart, lwEnd), v: sumEntries(entries, d => inRange(d, lwStart, lwEnd)) },
         { k: monthLabel(monthStart), v: sumEntries(entries, d => inRange(d, monthStart, monthEnd)) },
         { k: monthLabel(lastMonthStart), v: sumEntries(entries, d => inRange(d, lastMonthStart, lastMonthEnd)) },
-        { k: 'Tüm Zamanlar', v: entries.reduce((sum,e) => sum + entryTotal(e), 0) }
+        { k: 'Tüm Zamanlar', v: entries.reduce((sum,e) => sum + entryTotal(e), 0) },
+        { k: 'Haftaya Dair Plan ve Öneriler', v: currentStudent.weekly_plan && currentStudent.weekly_plan.trim() ? currentStudent.weekly_plan : '-' },
+        { k: 'Rehberlik Görüş ve Öneriler', v: currentStudent.guidance_note && currentStudent.guidance_note.trim() ? currentStudent.guidance_note : '-' }
       ]);
       wsSummary.getRow(1).font = { bold: true };
-
-      const wsCharts = wb.addWorksheet('Grafikler');
-      let rowCursor = 1;
-      const denemeCanvas = document.getElementById('detail-deneme-chart');
-      if (denemeCanvas && currentStudent.denemeler && currentStudent.denemeler.length > 0) {
-        wsCharts.getCell('A' + rowCursor).value = 'Deneme Puanları';
-        wsCharts.getCell('A' + rowCursor).font = { bold: true };
-        rowCursor += 1;
-        const imgId = wb.addImage({ base64: denemeCanvas.toDataURL('image/png'), extension: 'png' });
-        wsCharts.addImage(imgId, { tl: { col: 0, row: rowCursor }, ext: { width: 520, height: 260 } });
-      } else {
-        wsCharts.getCell('A1').value = 'Henüz deneme kaydı yok, grafik oluşturulamadı.';
-      }
+      wsSummary.getColumn('v').alignment = { wrapText: true, vertical: 'top' };
 
       const wsSubjects = wb.addWorksheet('Derslere Göre');
       wsSubjects.columns = [
-        { header: 'Ders', key: 'subj', width: 24 }, { header: 'Bu Hafta', key: 'week', width: 12 },
+        { header: 'Ders', key: 'subj', width: 24 }, { header: rangeLabel(wStart, wEnd), key: 'week', width: 22 },
         { header: 'Toplam', key: 'total', width: 12 }, { header: 'Yüzde', key: 'pct', width: 10 }
       ];
       wsSubjects.getRow(1).font = { bold: true };
@@ -1247,13 +1318,41 @@
       });
 
       const wsDenemeler = wb.addWorksheet('Denemeler');
-      wsDenemeler.columns = [
-        { header: 'Deneme', key: 'name', width: 24 }, { header: 'Tarih', key: 'date', width: 14 }, { header: 'Puan', key: 'score', width: 10 }
-      ];
-      wsDenemeler.getRow(1).font = { bold: true };
-      (currentStudent.denemeler || []).slice().sort((a,b) => a.date.localeCompare(b.date)).forEach(d => {
-        wsDenemeler.addRow({ name: d.name, date: d.date, score: d.score });
-      });
+      const denemeCanvas = document.getElementById('detail-deneme-chart');
+      const sortedDenemeler = (currentStudent.denemeler || []).slice().sort((a,b) => a.date.localeCompare(b.date));
+      let denemeRowCursor = 0;
+      if (denemeCanvas && sortedDenemeler.length > 0) {
+        wsDenemeler.getCell('A1').value = 'Puan Grafiği';
+        wsDenemeler.getCell('A1').font = { bold: true };
+        const imgId = wb.addImage({ base64: denemeCanvas.toDataURL('image/png'), extension: 'png' });
+        wsDenemeler.addImage(imgId, { tl: { col: 0, row: 1 }, ext: { width: 520, height: 260 } });
+        denemeRowCursor = 16; // grafiğin altına tabloyu yerleştirmek için satır boşluğu
+      }
+      wsDenemeler.getCell('A' + (denemeRowCursor + 1)).value = 'Deneme';
+      wsDenemeler.getCell('B' + (denemeRowCursor + 1)).value = 'Tarih';
+      wsDenemeler.getCell('C' + (denemeRowCursor + 1)).value = 'Puan';
+      wsDenemeler.getRow(denemeRowCursor + 1).font = { bold: true };
+      wsDenemeler.getColumn(1).width = 24; wsDenemeler.getColumn(2).width = 14; wsDenemeler.getColumn(3).width = 10;
+      if (sortedDenemeler.length === 0) {
+        wsDenemeler.getCell('A' + (denemeRowCursor + 2)).value = 'Henüz deneme kaydı yok.';
+      } else {
+        sortedDenemeler.forEach((d, i) => {
+          const r = denemeRowCursor + 2 + i;
+          wsDenemeler.getCell('A' + r).value = d.name;
+          wsDenemeler.getCell('B' + r).value = d.date;
+          wsDenemeler.getCell('C' + r).value = d.score;
+        });
+      }
+
+      const wsLogins = wb.addWorksheet('Giriş Saatleri');
+      wsLogins.columns = [{ header: 'Giriş Zamanı', key: 'login', width: 24 }];
+      wsLogins.getRow(1).font = { bold: true };
+      const studentLogins = currentStudent.logins || [];
+      if (studentLogins.length === 0) {
+        wsLogins.addRow({ login: 'Henüz giriş kaydı yok.' });
+      } else {
+        studentLogins.forEach(l => wsLogins.addRow({ login: fmtDateTime(l) }));
+      }
 
       const buffer = await wb.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/octet-stream' });
