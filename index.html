@@ -909,24 +909,34 @@
       const students = activityData.students || [];
 
       const studentsRows = students.map(s => ({
-        'Ad Soyad': s.name, 'Kullanıcı Adı': s.username,
-        'Günlük Hedef': s.daily_target != null ? s.daily_target : '',
-        'Son Giriş': s.last_entry_date || '(hiç girmedi)',
-        'Eklenme Tarihi': s.created_at ? s.created_at.slice(0,10) : '',
+        'Ad Soyad': s.name,
         'Haftaya Dair Plan ve Öneriler': s.weekly_plan && s.weekly_plan.trim() ? s.weekly_plan : '-',
         'Rehberlik Görüş ve Öneriler': s.guidance_note && s.guidance_note.trim() ? s.guidance_note : '-'
       }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(studentsRows), 'Öğrenciler');
 
-      const entryRows = [];
+      const subjectTotals = {};
+      SUBJECTS.forEach(subj => {
+        subjectTotals[subj] = {};
+        students.forEach(s => { subjectTotals[subj][s.name] = 0; });
+      });
       students.forEach(s => {
         (s.entries || []).forEach(e => {
           Object.entries(e.subjects || {}).forEach(([subj, count]) => {
-            entryRows.push({ 'Öğrenci': s.name, 'Tarih': e.date, 'Ders': subj, 'Soru Sayısı': count });
+            if (!(subj in subjectTotals)) {
+              subjectTotals[subj] = {};
+              students.forEach(st => { subjectTotals[subj][st.name] = 0; });
+            }
+            subjectTotals[subj][s.name] = (subjectTotals[subj][s.name] || 0) + (Number(count) || 0);
           });
         });
       });
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(entryRows), 'Günlük Sorular');
+      const subjectPivotRows = Object.keys(subjectTotals).map(subj => {
+        const row = { 'Ders': subj };
+        students.forEach(s => { row[s.name] = subjectTotals[subj][s.name] || 0; });
+        return row;
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(subjectPivotRows), 'Günlük Sorular');
 
       const denemeRows = [];
       students.forEach(s => {
