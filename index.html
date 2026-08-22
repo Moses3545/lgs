@@ -1100,32 +1100,51 @@
       const wb = XLSX.utils.book_new();
 
       const studentsRows = studentsData.map(s => ({
-        'Ad Soyad': s.name, 'Kullanıcı Adı': s.username,
+        'Ad Soyad': s.name,
         'Günlük Hedef': s.daily_target != null ? s.daily_target : '',
-        'Son Giriş': s.last_entry_date || '(hiç girmedi)',
-        'Eklenme Tarihi': s.created_at ? s.created_at.slice(0,10) : '',
         'Haftaya Dair Plan ve Öneriler': s.weekly_plan && s.weekly_plan.trim() ? s.weekly_plan : '-',
         'Rehberlik Görüş ve Öneriler': s.guidance_note && s.guidance_note.trim() ? s.guidance_note : '-'
       }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(studentsRows), 'Öğrenciler');
 
-      const entryRows = [];
-      studentsData.forEach(s => {
-        (s.entries || []).forEach(e => {
-          Object.entries(e.subjects || {}).forEach(([subj, count]) => {
-            entryRows.push({ 'Öğrenci': s.name, 'Tarih': e.date, 'Ders': subj, 'Soru Sayısı': count });
-          });
+      const dateSet = new Set();
+      studentsData.forEach(s => (s.entries || []).forEach(e => dateSet.add(e.date)));
+      const dates = Array.from(dateSet).sort().reverse();
+      const entryAoa = [];
+      dates.forEach(date => {
+        const rowsForDate = [];
+        studentsData.forEach(s => {
+          const entry = (s.entries || []).find(e => e.date === date);
+          if (!entry) return;
+          rowsForDate.push({ name: s.name, subjects: entry.subjects || {}, total: entryTotal(entry) });
         });
+        if (rowsForDate.length === 0) return;
+        entryAoa.push([fmtDate(date)]);
+        entryAoa.push(['Öğrenci', ...SUBJECTS, 'Toplam']);
+        rowsForDate.forEach(row => {
+          entryAoa.push([row.name, ...SUBJECTS.map(subj => row.subjects[subj] || 0), row.total]);
+        });
+        entryAoa.push([]);
       });
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(entryRows), 'Günlük Sorular');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(entryAoa), 'Günlük Sorular');
 
-      const denemeRows = [];
+      const denemeGroupMap = new Map();
       studentsData.forEach(s => {
         (s.denemeler || []).forEach(d => {
-          denemeRows.push({ 'Öğrenci': s.name, 'Deneme': d.name, 'Tarih': d.date, 'Puan': d.score });
+          const key = d.name + '|' + d.date;
+          if (!denemeGroupMap.has(key)) denemeGroupMap.set(key, { name: d.name, date: d.date, rows: [] });
+          denemeGroupMap.get(key).rows.push({ name: s.name, score: d.score });
         });
       });
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(denemeRows), 'Denemeler');
+      const denemeGroups = Array.from(denemeGroupMap.values()).sort((a,b) => a.date.localeCompare(b.date));
+      const denemeAoa = [];
+      denemeGroups.forEach(g => {
+        denemeAoa.push([g.name, fmtDate(g.date)]);
+        denemeAoa.push(['Öğrenci', 'Puan']);
+        g.rows.forEach(r => denemeAoa.push([r.name, r.score]));
+        denemeAoa.push([]);
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(denemeAoa), 'Denemeler');
 
       XLSX.writeFile(wb, 'ogrenciler-' + todayStr() + '.xlsx');
     } catch (e) {
