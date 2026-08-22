@@ -98,13 +98,13 @@
 
   label{ display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin:14px 0 6px; }
   label:first-of-type{ margin-top:0; }
-  input[type=text], input[type=password], input[type=number], input[type=date], textarea{
+  input[type=text], input[type=password], input[type=number], input[type=date], textarea, select{
     width:100%; font-family:'Inter',sans-serif; font-size:15px;
     padding:11px 12px; border:1px solid rgba(42,42,36,.16); border-radius:5px;
     background:#fff; color:var(--ink);
   }
   .pin-input{ font-family:'IBM Plex Mono', monospace; letter-spacing:.12em; }
-  input:focus-visible, textarea:focus-visible, button:focus-visible{
+  input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible{
     outline:2px solid var(--green); outline-offset:2px;
   }
 
@@ -229,6 +229,10 @@
 
   .plan-note-block{ padding:14px 0; border-top:1px solid rgba(42,42,36,.08); }
   .plan-note-block:first-child{ border-top:none; padding-top:0; }
+  .transfer-panel{
+    background:var(--cream); border-radius:5px; padding:14px; margin:10px 0;
+  }
+  .transfer-panel label{ margin-top:0; }
 
   .table-scroll{ overflow-x:auto; margin-top:14px; -webkit-overflow-scrolling:touch; }
   .pivot-table{ border-collapse:collapse; font-size:12.5px; white-space:nowrap; }
@@ -835,8 +839,10 @@
   // ADMIN — ÖĞRETMEN AKTİVİTESİ (salt-okunur)
   // ============================================================
   let activityData = null; // { teacher_name, logins, students }
+  let currentActivityTeacherId = null;
 
   async function openTeacherActivity(teacherId){
+    currentActivityTeacherId = teacherId;
     $('activity-teacher-name').textContent = 'Yükleniyor…';
     $('activity-last-login').textContent = '';
     $('activity-pivot-table').innerHTML = '';
@@ -869,13 +875,72 @@
     const el = $('activity-plans-notes');
     if (students.length === 0) { el.innerHTML = '<p class="empty-state">Öğrenci yok.</p>'; return; }
     el.innerHTML = students.map(s => `
-      <div class="plan-note-block">
-        <h3>${escapeHtml(s.name)}</h3>
+      <div class="plan-note-block" data-student-id="${s.id}">
+        <div class="teacher-card-head">
+          <h3>${escapeHtml(s.name)}</h3>
+          <button type="button" class="btn-small btn-transfer-student">Öğretmen Değiştir</button>
+        </div>
+        <div class="transfer-panel" style="display:none;"></div>
         <div class="eyebrow">Haftaya Dair Plan ve Öneriler</div>
         <p class="readonly-text">${escapeHtml(s.weekly_plan && s.weekly_plan.trim() ? s.weekly_plan : '-')}</p>
         <div class="eyebrow" style="margin-top:10px;">Rehberlik Görüş ve Öneriler</div>
         <p class="readonly-text">${escapeHtml(s.guidance_note && s.guidance_note.trim() ? s.guidance_note : '-')}</p>
       </div>`).join('');
+
+    el.querySelectorAll('.btn-transfer-student').forEach(b => b.addEventListener('click', () => openTransferPanel(b)));
+  }
+
+  async function openTransferPanel(btn){
+    const block = btn.closest('.plan-note-block');
+    const panel = block.querySelector('.transfer-panel');
+    const isOpen = panel.style.display !== 'none';
+    // Açık olan başka panel varsa kapat
+    document.querySelectorAll('.transfer-panel').forEach(p => { p.style.display = 'none'; p.innerHTML = ''; });
+    if (isOpen) return;
+
+    panel.style.display = '';
+    panel.innerHTML = '<p class="hint-text">Öğretmenler yükleniyor…</p>';
+    const { data, error } = await sb.rpc('admin_list_teachers', { p_admin_id: session.id, p_pin: session.secret });
+    if (error || !data || data.error) { panel.innerHTML = '<p class="error-text">Öğretmenler yüklenemedi.</p>'; return; }
+    const others = (data.teachers || []).filter(t => t.id !== currentActivityTeacherId);
+    if (others.length === 0) {
+      panel.innerHTML = '<p class="hint-text">Aktarılabilecek başka öğretmen yok.</p>';
+      return;
+    }
+    panel.innerHTML = `
+      <label>Yeni Öğretmen</label>
+      <select class="transfer-teacher-select">
+        ${others.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')}
+      </select>
+      <div class="error-text transfer-error"></div>
+      <div class="teacher-actions">
+        <button type="button" class="btn-small btn-confirm-transfer">Aktar</button>
+        <button type="button" class="btn-small btn-cancel-transfer">Vazgeç</button>
+      </div>`;
+
+    panel.querySelector('.btn-cancel-transfer').addEventListener('click', () => {
+      panel.style.display = 'none'; panel.innerHTML = '';
+    });
+    panel.querySelector('.btn-confirm-transfer').addEventListener('click', async () => {
+      const studentId = block.dataset.studentId;
+      const newTeacherId = panel.querySelector('.transfer-teacher-select').value;
+      const newTeacherName = others.find(t => t.id === newTeacherId)?.name || '';
+      const errEl = panel.querySelector('.transfer-error');
+      errEl.textContent = '';
+      const confirmBtn = panel.querySelector('.btn-confirm-transfer');
+      if (!confirm(block.querySelector('h3').textContent + ' adlı öğrenciyi ' + newTeacherName + ' adlı öğretmene aktarmak istediğine emin misin? Tüm soru girişleri, denemeleri, plan ve rehberlik notu korunacak.')) return;
+      confirmBtn.disabled = true; confirmBtn.textContent = 'Aktarılıyor…';
+      const { data: res, error: err } = await sb.rpc('admin_transfer_student', {
+        p_admin_id: session.id, p_pin: session.secret, p_student_id: studentId, p_new_teacher_id: newTeacherId
+      });
+      if (err || !res || res.error) {
+        errEl.textContent = 'Aktarılamadı, tekrar dene.';
+        confirmBtn.disabled = false; confirmBtn.textContent = 'Aktar';
+        return;
+      }
+      // Bu öğretmenin öğrenci listesinden kalktı, ekranı yenile
+      await openTeacherActivity(currentActivityTeacherId);
+    });
   }
 
   $('btn-export-logins').addEventListener('click', async () => {
