@@ -1146,7 +1146,7 @@
       });
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(denemeAoa), 'Denemeler');
 
-      XLSX.writeFile(wb, 'ogrenciler-' + todayStr() + '.xlsx');
+      XLSX.writeFile(wb, session.name.replace(/\s+/g, '-') + '-' + todayStr() + '.xlsx');
     } catch (e) {
       alert('Excel oluşturulamadı, internet bağlantını kontrol edip tekrar dene.');
     }
