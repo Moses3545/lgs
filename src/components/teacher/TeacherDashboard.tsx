@@ -155,6 +155,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ session, onL
         roleBadge="ÖĞRETMEN"
         title={`Merhaba, ${session.name}`}
         onLogout={onLogout}
+        session={session}
       />
 
       <button

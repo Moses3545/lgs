@@ -221,6 +221,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         roleBadge="ADMIN"
         title={`Merhaba, ${session.name}`}
         onLogout={onLogout}
+        session={session}
       />
 
       <button

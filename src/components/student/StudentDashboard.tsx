@@ -357,6 +357,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ session, onL
         roleBadge="ÖĞRENCİ"
         title={`Merhaba, ${session.name}`}
         onLogout={onLogout}
+        session={session}
       />
 
       {/* Bugün Kaç Soru Çözdün? */}
