@@ -586,6 +586,330 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 4. Öğretmen & Öğrenci İşlem Fonksiyonları (Oturum Belirteci / Session Token Destekli)
+
+-- 4.1 Öğrenci Giriş Bilgisi Güncelleme (teacher_update_credentials)
+DROP FUNCTION IF EXISTS public.teacher_update_credentials(uuid, text, uuid, text, text);
+DROP FUNCTION IF EXISTS public.teacher_update_credentials(uuid, text, uuid, uuid, text, text);
+
+CREATE OR REPLACE FUNCTION public.teacher_update_credentials(
+    p_teacher_id UUID,
+    p_password TEXT DEFAULT NULL,
+    p_session_token UUID DEFAULT NULL,
+    p_student_id UUID DEFAULT NULL,
+    p_username TEXT DEFAULT NULL,
+    p_student_password TEXT DEFAULT NULL
+)
+RETURNS JSONB AS $$
+DECLARE
+    u_clean TEXT := TRIM(LOWER(p_username));
+    v_hashed TEXT;
+    v_student RECORD;
+BEGIN
+    IF NOT public.is_teacher_authorized(p_teacher_id, p_password, p_session_token) THEN
+        RETURN jsonb_build_object('error', 'invalid');
+    END IF;
+
+    SELECT * INTO v_student FROM public.students
+    WHERE id = p_student_id AND teacher_id = p_teacher_id;
+
+    IF v_student.id IS NULL THEN
+        RETURN jsonb_build_object('error', 'not_found');
+    END IF;
+
+    IF u_clean IS NOT NULL AND u_clean <> '' THEN
+        IF EXISTS (SELECT 1 FROM public.students WHERE LOWER(username) = u_clean AND id <> p_student_id) THEN
+            RETURN jsonb_build_object('error', 'username_taken');
+        END IF;
+    END IF;
+
+    IF p_student_password IS NOT NULL AND TRIM(p_student_password) <> '' THEN
+        v_hashed := crypt(p_student_password, gen_salt('bf'));
+        UPDATE public.students
+        SET username = COALESCE(NULLIF(u_clean, ''), username),
+            password = v_hashed
+        WHERE id = p_student_id;
+
+        BEGIN
+            UPDATE auth.users
+            SET encrypted_password = v_hashed,
+                raw_user_meta_data = jsonb_build_object('name', v_student.name, 'username', COALESCE(NULLIF(u_clean, ''), v_student.username)),
+                updated_at = NOW()
+            WHERE email = v_student.username || '@lgs.internal' OR email = u_clean || '@lgs.internal';
+        EXCEPTION WHEN OTHERS THEN
+        END;
+    ELSE
+        UPDATE public.students
+        SET username = COALESCE(NULLIF(u_clean, ''), username)
+        WHERE id = p_student_id;
+
+        BEGIN
+            UPDATE auth.users
+            SET raw_user_meta_data = jsonb_build_object('name', v_student.name, 'username', u_clean),
+                updated_at = NOW()
+            WHERE email = v_student.username || '@lgs.internal';
+        EXCEPTION WHEN OTHERS THEN
+        END;
+    END IF;
+
+    RETURN jsonb_build_object('success', true);
+EXCEPTION
+    WHEN unique_violation THEN
+        RETURN jsonb_build_object('error', 'username_taken');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 4.2 Öğretmen Soru Girişi Kaydetme (teacher_save_entry)
+DROP FUNCTION IF EXISTS public.teacher_save_entry(uuid, text, uuid, date, jsonb);
+DROP FUNCTION IF EXISTS public.teacher_save_entry(uuid, text, uuid, uuid, date, jsonb);
+
+CREATE OR REPLACE FUNCTION public.teacher_save_entry(
+    p_teacher_id UUID,
+    p_password TEXT DEFAULT NULL,
+    p_session_token UUID DEFAULT NULL,
+    p_student_id UUID DEFAULT NULL,
+    p_date DATE DEFAULT CURRENT_DATE,
+    p_subjects JSONB DEFAULT '{}'::jsonb
+)
+RETURNS JSONB AS $$
+BEGIN
+    IF NOT public.is_teacher_authorized(p_teacher_id, p_password, p_session_token) THEN
+        RETURN jsonb_build_object('error', 'invalid');
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM public.students WHERE id = p_student_id AND teacher_id = p_teacher_id) THEN
+        RETURN jsonb_build_object('error', 'not_found');
+    END IF;
+
+    IF p_date > CURRENT_DATE THEN
+        RETURN jsonb_build_object('error', 'future_date_not_allowed');
+    END IF;
+
+    INSERT INTO public.entries (student_id, date, subjects, saved_at)
+    VALUES (p_student_id, p_date, COALESCE(p_subjects, '{}'::jsonb), NOW())
+    ON CONFLICT (student_id, date)
+    DO UPDATE SET subjects = EXCLUDED.subjects, saved_at = NOW();
+
+    RETURN jsonb_build_object('success', true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 4.3 Öğretmen Deneme Ekleme (teacher_add_deneme)
+DROP FUNCTION IF EXISTS public.teacher_add_deneme(uuid, text, uuid, text, numeric, date);
+DROP FUNCTION IF EXISTS public.teacher_add_deneme(uuid, text, uuid, uuid, text, numeric, date);
+
+CREATE OR REPLACE FUNCTION public.teacher_add_deneme(
+    p_teacher_id UUID,
+    p_password TEXT DEFAULT NULL,
+    p_session_token UUID DEFAULT NULL,
+    p_student_id UUID DEFAULT NULL,
+    p_name TEXT DEFAULT NULL,
+    p_score NUMERIC DEFAULT 0,
+    p_date DATE DEFAULT CURRENT_DATE
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_id UUID := gen_random_uuid();
+BEGIN
+    IF NOT public.is_teacher_authorized(p_teacher_id, p_password, p_session_token) THEN
+        RETURN jsonb_build_object('error', 'invalid');
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM public.students WHERE id = p_student_id AND teacher_id = p_teacher_id) THEN
+        RETURN jsonb_build_object('error', 'not_found');
+    END IF;
+
+    INSERT INTO public.denemeler (id, student_id, name, score, date)
+    VALUES (v_id, p_student_id, p_name, p_score, p_date);
+
+    RETURN jsonb_build_object('id', v_id, 'success', true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 4.4 Öğretmen Deneme Silme (teacher_delete_deneme)
+DROP FUNCTION IF EXISTS public.teacher_delete_deneme(uuid, text, uuid);
+DROP FUNCTION IF EXISTS public.teacher_delete_deneme(uuid, text, uuid, uuid);
+
+CREATE OR REPLACE FUNCTION public.teacher_delete_deneme(
+    p_teacher_id UUID,
+    p_password TEXT DEFAULT NULL,
+    p_session_token UUID DEFAULT NULL,
+    p_deneme_id UUID DEFAULT NULL
+)
+RETURNS JSONB AS $$
+BEGIN
+    IF NOT public.is_teacher_authorized(p_teacher_id, p_password, p_session_token) THEN
+        RETURN jsonb_build_object('error', 'invalid');
+    END IF;
+
+    DELETE FROM public.denemeler d
+    USING public.students s
+    WHERE d.student_id = s.id AND s.teacher_id = p_teacher_id AND d.id = p_deneme_id;
+
+    RETURN jsonb_build_object('success', true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 4.5 Öğretmen Haftalık Plan Kaydetme (teacher_save_weekly_plan)
+DROP FUNCTION IF EXISTS public.teacher_save_weekly_plan(uuid, text, uuid, text);
+DROP FUNCTION IF EXISTS public.teacher_save_weekly_plan(uuid, text, uuid, uuid, text);
+
+CREATE OR REPLACE FUNCTION public.teacher_save_weekly_plan(
+    p_teacher_id UUID,
+    p_password TEXT DEFAULT NULL,
+    p_session_token UUID DEFAULT NULL,
+    p_student_id UUID DEFAULT NULL,
+    p_content TEXT DEFAULT ''
+)
+RETURNS JSONB AS $$
+BEGIN
+    IF NOT public.is_teacher_authorized(p_teacher_id, p_password, p_session_token) THEN
+        RETURN jsonb_build_object('error', 'invalid');
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM public.students WHERE id = p_student_id AND teacher_id = p_teacher_id) THEN
+        RETURN jsonb_build_object('error', 'not_found');
+    END IF;
+
+    INSERT INTO public.weekly_plans (student_id, content)
+    VALUES (p_student_id, p_content)
+    ON CONFLICT (student_id)
+    DO UPDATE SET content = EXCLUDED.content;
+
+    RETURN jsonb_build_object('success', true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 4.6 Öğretmen Rehberlik Notu Kaydetme (teacher_save_guidance_note)
+DROP FUNCTION IF EXISTS public.teacher_save_guidance_note(uuid, text, uuid, text);
+DROP FUNCTION IF EXISTS public.teacher_save_guidance_note(uuid, text, uuid, uuid, text);
+
+CREATE OR REPLACE FUNCTION public.teacher_save_guidance_note(
+    p_teacher_id UUID,
+    p_password TEXT DEFAULT NULL,
+    p_session_token UUID DEFAULT NULL,
+    p_student_id UUID DEFAULT NULL,
+    p_content TEXT DEFAULT ''
+)
+RETURNS JSONB AS $$
+BEGIN
+    IF NOT public.is_teacher_authorized(p_teacher_id, p_password, p_session_token) THEN
+        RETURN jsonb_build_object('error', 'invalid');
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM public.students WHERE id = p_student_id AND teacher_id = p_teacher_id) THEN
+        RETURN jsonb_build_object('error', 'not_found');
+    END IF;
+
+    INSERT INTO public.guidance_notes (student_id, content)
+    VALUES (p_student_id, p_content)
+    ON CONFLICT (student_id)
+    DO UPDATE SET content = EXCLUDED.content;
+
+    RETURN jsonb_build_object('success', true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 4.7 Öğretmen Günlük Hedef Güncelleme (teacher_update_target)
+DROP FUNCTION IF EXISTS public.teacher_update_target(uuid, text, uuid, integer);
+DROP FUNCTION IF EXISTS public.teacher_update_target(uuid, text, uuid, uuid, integer);
+
+CREATE OR REPLACE FUNCTION public.teacher_update_target(
+    p_teacher_id UUID,
+    p_password TEXT DEFAULT NULL,
+    p_session_token UUID DEFAULT NULL,
+    p_student_id UUID DEFAULT NULL,
+    p_daily_target INTEGER DEFAULT NULL
+)
+RETURNS JSONB AS $$
+BEGIN
+    IF NOT public.is_teacher_authorized(p_teacher_id, p_password, p_session_token) THEN
+        RETURN jsonb_build_object('error', 'invalid');
+    END IF;
+
+    UPDATE public.students
+    SET daily_target = p_daily_target
+    WHERE id = p_student_id AND teacher_id = p_teacher_id;
+
+    RETURN jsonb_build_object('success', true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 4.8 Öğrenci Soru Girişi Kaydetme (student_save_entry)
+DROP FUNCTION IF EXISTS public.student_save_entry(uuid, text, jsonb);
+DROP FUNCTION IF EXISTS public.student_save_entry(uuid, text, uuid, jsonb);
+
+CREATE OR REPLACE FUNCTION public.student_save_entry(
+    p_student_id UUID,
+    p_password TEXT DEFAULT NULL,
+    p_session_token UUID DEFAULT NULL,
+    p_subjects JSONB DEFAULT '{}'::jsonb
+)
+RETURNS JSONB AS $$
+BEGIN
+    IF NOT public.is_student_authorized(p_student_id, p_password, p_session_token) THEN
+        RETURN jsonb_build_object('error', 'invalid');
+    END IF;
+
+    INSERT INTO public.entries (student_id, date, subjects, saved_at)
+    VALUES (p_student_id, CURRENT_DATE, COALESCE(p_subjects, '{}'::jsonb), NOW())
+    ON CONFLICT (student_id, date)
+    DO UPDATE SET subjects = EXCLUDED.subjects, saved_at = NOW();
+
+    RETURN jsonb_build_object('success', true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 4.9 Öğrenci Deneme Ekleme (student_add_deneme)
+DROP FUNCTION IF EXISTS public.student_add_deneme(uuid, text, text, numeric, date);
+DROP FUNCTION IF EXISTS public.student_add_deneme(uuid, text, uuid, text, numeric, date);
+
+CREATE OR REPLACE FUNCTION public.student_add_deneme(
+    p_student_id UUID,
+    p_password TEXT DEFAULT NULL,
+    p_session_token UUID DEFAULT NULL,
+    p_name TEXT DEFAULT NULL,
+    p_score NUMERIC DEFAULT 0,
+    p_date DATE DEFAULT CURRENT_DATE
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_id UUID := gen_random_uuid();
+BEGIN
+    IF NOT public.is_student_authorized(p_student_id, p_password, p_session_token) THEN
+        RETURN jsonb_build_object('error', 'invalid');
+    END IF;
+
+    INSERT INTO public.denemeler (id, student_id, name, score, date)
+    VALUES (v_id, p_student_id, p_name, p_score, p_date);
+
+    RETURN jsonb_build_object('id', v_id, 'success', true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 4.10 Öğrenci Deneme Silme (student_delete_deneme)
+DROP FUNCTION IF EXISTS public.student_delete_deneme(uuid, text, uuid);
+DROP FUNCTION IF EXISTS public.student_delete_deneme(uuid, text, uuid, uuid);
+
+CREATE OR REPLACE FUNCTION public.student_delete_deneme(
+    p_student_id UUID,
+    p_password TEXT DEFAULT NULL,
+    p_session_token UUID DEFAULT NULL,
+    p_deneme_id UUID DEFAULT NULL
+)
+RETURNS JSONB AS $$
+BEGIN
+    IF NOT public.is_student_authorized(p_student_id, p_password, p_session_token) THEN
+        RETURN jsonb_build_object('error', 'invalid');
+    END IF;
+
+    DELETE FROM public.denemeler
+    WHERE id = p_deneme_id AND student_id = p_student_id;
+
+    RETURN jsonb_build_object('success', true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- İzinleri Güncelle
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
