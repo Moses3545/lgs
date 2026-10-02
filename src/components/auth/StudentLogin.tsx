@@ -120,17 +120,26 @@ export const StudentLogin: React.FC<StudentLoginProps> = ({ onSuccess, onBack })
 
   return (
     <div className="animate-fadeIn">
-      <div className="notebook-card">
-        <div className="font-mono text-xs uppercase tracking-wider text-muted mb-1 font-semibold">
-          Öğrenci Girişi
+      <button
+        type="button"
+        onClick={onBack}
+        className="ios-press inline-flex items-center gap-1.5 text-sm text-[#007AFF] hover:text-[#005bb5] font-bold mb-3 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span>Geri Dön</span>
+      </button>
+
+      <div className="notebook-card p-6 sm:p-8 border border-white shadow-lg">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs">
+          <span>🎒</span> Öğrenci Girişi
         </div>
-        <h2 className="font-serif text-2xl font-bold text-ink mb-4">
-          Hesabına gir
+        <h2 className="text-2xl sm:text-3xl font-black text-ink tracking-tight mb-5">
+          Hesabına Giriş Yap 🚀
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="student-username" className="block text-xs font-semibold text-muted mb-1.5">
+            <label htmlFor="student-username" className="block text-xs font-bold text-ink mb-1.5 uppercase tracking-wide">
               Kullanıcı Adı
             </label>
             <input
@@ -139,13 +148,14 @@ export const StudentLogin: React.FC<StudentLoginProps> = ({ onSuccess, onBack })
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
+              placeholder="Kullanıcı adını yaz"
               required
-              className="w-full text-sm px-3.5 py-2.5 rounded-md border border-ink/20 bg-white text-ink focus:outline-none focus:ring-2 focus:ring-brandGreen/40 focus:border-brandGreen transition-all"
+              className="w-full text-base sm:text-sm px-4 py-3 rounded-2xl border border-black/[0.08] bg-blue-50/40 text-ink focus:outline-none focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs"
             />
           </div>
 
           <div>
-            <label htmlFor="student-password" className="block text-xs font-semibold text-muted mb-1.5">
+            <label htmlFor="student-password" className="block text-xs font-bold text-ink mb-1.5 uppercase tracking-wide">
               Şifre
             </label>
             <div className="relative">
@@ -155,13 +165,14 @@ export const StudentLogin: React.FC<StudentLoginProps> = ({ onSuccess, onBack })
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
+                placeholder="Şifreni yaz"
                 required
-                className="w-full text-sm px-3.5 py-2.5 pr-10 rounded-md border border-ink/20 bg-white text-ink focus:outline-none focus:ring-2 focus:ring-brandGreen/40 focus:border-brandGreen transition-all"
+                className="w-full text-base sm:text-sm px-4 py-3 pr-11 rounded-2xl border border-black/[0.08] bg-blue-50/40 text-ink focus:outline-none focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs font-mono"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5 text-muted hover:text-ink p-0.5 rounded transition-colors"
+                className="absolute right-3 top-3 text-[#8E8E93] hover:text-ink p-1 rounded-lg transition-colors ios-press"
                 title={showPassword ? 'Şifreyi Gizle' : 'Şifreyi Göster'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -175,15 +186,15 @@ export const StudentLogin: React.FC<StudentLoginProps> = ({ onSuccess, onBack })
               id="student-remember"
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
-              className="w-4 h-4 text-brandGreen rounded border-ink/20 focus:ring-brandGreen cursor-pointer"
+              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
             />
-            <label htmlFor="student-remember" className="text-xs text-ink/80 cursor-pointer select-none">
-              Bu cihazda beni hatırla
+            <label htmlFor="student-remember" className="text-xs text-ink/80 cursor-pointer select-none font-semibold">
+              Beni hatırla
             </label>
           </div>
 
           {error && (
-            <div className="text-brandRed text-xs font-medium bg-dangerBg/50 p-2.5 rounded border border-brandRed/20">
+            <div className="text-rose-600 text-xs font-bold bg-rose-50 p-3 rounded-2xl border border-rose-200 animate-fadeIn">
               {error}
             </div>
           )}
@@ -191,20 +202,11 @@ export const StudentLogin: React.FC<StudentLoginProps> = ({ onSuccess, onBack })
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-brandGreen text-white font-semibold py-2.5 px-4 rounded-md shadow-sm hover:opacity-90 active:scale-[0.99] disabled:opacity-50 transition-all text-sm mt-2"
+            className="ios-press w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:brightness-105 active:scale-[0.98] text-white font-black py-3.5 px-6 rounded-2xl shadow-lg shadow-blue-500/25 disabled:opacity-50 transition-all text-base mt-3"
           >
-            {loading ? 'Kontrol ediliyor…' : 'Giriş Yap'}
+            {loading ? 'Kontrol ediliyor…' : 'Giriş Yap 🚀'}
           </button>
         </form>
-
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-ink font-medium mt-4 transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Rol seçimine dön</span>
-        </button>
       </div>
     </div>
   );

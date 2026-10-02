@@ -154,8 +154,14 @@ export const App: React.FC = () => {
     );
   }
 
+  const containerClass = !session
+    ? 'max-w-md mx-auto px-4 py-8 sm:py-10 min-h-screen'
+    : session.role === 'teacher' || session.role === 'admin'
+    ? 'max-w-md sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-4 py-6 sm:py-10 min-h-screen transition-all'
+    : 'max-w-md sm:max-w-xl md:max-w-2xl mx-auto px-4 py-6 sm:py-10 min-h-screen transition-all';
+
   return (
-    <main className="max-w-md mx-auto px-4 py-8 sm:py-10 min-h-screen">
+    <main className={containerClass}>
       {!session && (
         <>
           {authScreen === 'role' && (

@@ -228,7 +228,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         type="button"
         onClick={handleExportAll}
         disabled={exportLoading}
-        className="w-full bg-brandGreen text-white font-semibold py-2.5 px-4 rounded-md shadow-sm hover:opacity-90 disabled:opacity-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2"
+        className="w-full bg-[#34C759] hover:bg-[#30B753] active:bg-[#289945] text-white font-semibold py-3 px-4 rounded-xl shadow-sm disabled:opacity-50 transition-all text-sm flex items-center justify-center gap-2 ios-press"
       >
         <Download className="w-4 h-4" />
         <span>
@@ -239,37 +239,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </button>
 
       {/* Yeni Öğretmen Ekle Kartı */}
-      <div className="notebook-card">
-        <div className="flex items-center gap-2 mb-3">
-          <UserPlus className="w-4 h-4 text-brandGold" />
-          <h3 className="font-serif text-lg font-bold text-ink">Yeni Öğretmen Ekle</h3>
+      <div className="notebook-card p-5 sm:p-6">
+        <div className="flex items-center gap-2.5 mb-4">
+          <span className="w-8 h-8 rounded-full bg-[#FF9500]/10 text-[#FF9500] flex items-center justify-center">
+            <UserPlus className="w-4 h-4" />
+          </span>
+          <h3 className="text-lg font-bold text-ink tracking-tight">Yeni Öğretmen Ekle</h3>
         </div>
 
-        <form onSubmit={handleAddTeacher} className="space-y-3">
+        <form onSubmit={handleAddTeacher} className="space-y-3.5">
           <div>
-            <label className="block text-xs font-semibold text-muted mb-1">Ad Soyad</label>
+            <label className="block text-xs font-semibold text-[#8E8E93] uppercase tracking-wide mb-1.5">
+              Ad Soyad
+            </label>
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               required
-              className="w-full text-xs sm:text-sm px-3 py-2 rounded border border-ink/20 bg-white"
+              placeholder="Öğretmenin Adı Soyadı"
+              className="w-full text-sm px-4 py-2.5 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 focus:border-[#007AFF] transition-all"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-muted mb-1">Kullanıcı Adı</label>
+            <label className="block text-xs font-semibold text-[#8E8E93] uppercase tracking-wide mb-1.5">
+              Kullanıcı Adı
+            </label>
             <input
               type="text"
               value={newUsername}
               onChange={(e) => setNewUsername(e.target.value)}
               required
-              className="w-full text-xs sm:text-sm px-3 py-2 rounded border border-ink/20 bg-white"
+              placeholder="örn: mehmetogretmen"
+              className="w-full text-sm px-4 py-2.5 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 focus:border-[#007AFF] transition-all"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-muted mb-1">Şifre</label>
+            <label className="block text-xs font-semibold text-[#8E8E93] uppercase tracking-wide mb-1.5">
+              Şifre
+            </label>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <input
@@ -277,12 +287,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
-                  className="w-full font-mono text-xs sm:text-sm px-3 py-2 pr-8 rounded border border-ink/20 bg-white tracking-wider"
+                  placeholder="Şifre"
+                  className="w-full font-mono text-sm px-4 py-2.5 pr-10 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 tracking-wider transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-2 top-2 text-muted hover:text-ink p-0.5 rounded transition-colors"
+                  className="absolute right-2.5 top-2.5 text-[#8E8E93] hover:text-ink p-1 rounded-lg transition-colors ios-press"
                   title={showNewPassword ? 'Şifreyi Gizle' : 'Şifreyi Göster'}
                 >
                   {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -294,7 +305,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   setNewPassword(generatePin(8));
                   setShowNewPassword(true);
                 }}
-                className="inline-flex items-center gap-1 px-3 py-2 bg-successBg text-brandGreen border border-brandGreen/30 text-xs font-semibold rounded hover:bg-brandGreen hover:text-white transition-colors flex-shrink-0"
+                className="inline-flex items-center gap-1 px-3.5 py-2.5 bg-[#34C759]/10 text-[#34C759] border border-[#34C759]/20 text-xs font-semibold rounded-xl hover:bg-[#34C759]/20 transition-all flex-shrink-0 ios-press"
               >
                 <KeyRound className="w-3.5 h-3.5" />
                 <span>Otomatik Ata</span>
@@ -303,7 +314,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           {addError && (
-            <p className="text-brandRed text-xs font-medium bg-dangerBg/50 p-2 rounded border border-brandRed/20">
+            <p className="text-[#FF3B30] text-xs font-medium bg-[#FF3B30]/10 p-3 rounded-xl border border-[#FF3B30]/20 animate-fadeIn">
               {addError}
             </p>
           )}
@@ -311,26 +322,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <button
             type="submit"
             disabled={addLoading}
-            className="w-full bg-brandGreen text-white font-semibold py-2 px-4 rounded shadow-sm hover:opacity-90 disabled:opacity-50 text-xs sm:text-sm transition-all mt-1"
+            className="w-full bg-[#007AFF] hover:bg-[#0071E3] active:bg-[#005bb5] text-white font-semibold py-3 px-4 rounded-xl shadow-sm disabled:opacity-50 text-sm transition-all mt-2 ios-press"
           >
-            {addLoading ? 'Ekleniyor…' : 'Ekle'}
+            {addLoading ? 'Ekleniyor…' : 'Öğretmeni Ekle'}
           </button>
         </form>
       </div>
 
       {/* Öğretmen Listesi */}
       <div className="pt-2">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-serif text-lg font-bold text-ink flex items-center gap-2">
+        <div className="flex items-center justify-between mb-3 px-1">
+          <h3 className="text-lg font-bold text-ink tracking-tight flex items-center gap-2">
             <span>Öğretmenler</span>
-            <span className="text-xs font-mono font-normal text-muted bg-paper px-2 py-0.5 rounded-full border border-ink/10">
+            <span className="text-xs font-semibold text-[#8E8E93] bg-[#E5E5EA] px-2.5 py-0.5 rounded-full">
               {teachers.length}
             </span>
           </h3>
           <button
             type="button"
             onClick={fetchTeachers}
-            className="p-1.5 text-muted hover:text-ink rounded-full hover:bg-white transition-colors"
+            className="p-2 text-[#8E8E93] hover:text-ink rounded-full bg-white hover:bg-[#E5E5EA]/60 transition-colors shadow-xs ios-press"
             title="Yenile"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -338,15 +349,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         {error && (
-          <div className="p-3 bg-dangerBg text-brandRed rounded-md text-xs font-medium border border-brandRed/20 mb-3">
+          <div className="p-3 bg-[#FF3B30]/10 text-[#FF3B30] rounded-xl text-xs font-medium border border-[#FF3B30]/20 mb-3">
             {error}
           </div>
         )}
 
         {loading && teachers.length === 0 ? (
-          <div className="notebook-card text-center py-8 text-muted text-xs">Yükleniyor…</div>
+          <div className="notebook-card text-center py-10 text-muted text-xs">Yükleniyor…</div>
         ) : teachers.length === 0 ? (
-          <div className="notebook-card text-center py-8 text-muted text-xs">
+          <div className="notebook-card text-center py-10 text-muted text-xs">
             Henüz öğretmen eklenmedi. Yukarıdaki formdan ilk öğretmeni ekleyebilirsiniz.
           </div>
         ) : (
@@ -356,69 +367,75 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               if (isEditing) {
                 return (
-                  <div key={t.id} className="notebook-card space-y-2 border-brandGreen/40 border">
-                    <label className="block text-xs font-semibold text-muted">Ad Soyad</label>
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="w-full text-xs px-3 py-2 rounded border border-ink/20 bg-white"
-                    />
-
-                    <label className="block text-xs font-semibold text-muted">Kullanıcı Adı</label>
-                    <input
-                      type="text"
-                      value={editUsername}
-                      onChange={(e) => setEditUsername(e.target.value)}
-                      className="w-full text-xs px-3 py-2 rounded border border-ink/20 bg-white"
-                    />
-
-                    <label className="block text-xs font-semibold text-muted">Şifre (Değiştirmek için girin)</label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <input
-                          type={showEditPassword ? 'text' : 'password'}
-                          value={editPassword}
-                          onChange={(e) => setEditPassword(e.target.value)}
-                          placeholder="Yeni şifre girin"
-                          className="w-full font-mono text-xs px-3 py-2 pr-8 rounded border border-ink/20 bg-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowEditPassword(!showEditPassword)}
-                          className="absolute right-2 top-2 text-muted hover:text-ink p-0.5 rounded transition-colors"
-                          title={showEditPassword ? 'Şifreyi Gizle' : 'Şifreyi Göster'}
-                        >
-                          {showEditPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditPassword(generatePin(8));
-                          setShowEditPassword(true);
-                        }}
-                        className="px-2.5 py-1.5 bg-successBg text-brandGreen border border-brandGreen/30 text-xs font-semibold rounded hover:bg-brandGreen hover:text-white transition-colors flex-shrink-0"
-                      >
-                        Otomatik
-                      </button>
+                  <div key={t.id} className="notebook-card p-5 space-y-3 border-[#007AFF]/40 border">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#8E8E93] uppercase tracking-wide mb-1">Ad Soyad</label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white"
+                      />
                     </div>
 
-                    {editError && <p className="text-brandRed text-xs">{editError}</p>}
+                    <div>
+                      <label className="block text-xs font-semibold text-[#8E8E93] uppercase tracking-wide mb-1">Kullanıcı Adı</label>
+                      <input
+                        type="text"
+                        value={editUsername}
+                        onChange={(e) => setEditUsername(e.target.value)}
+                        className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white"
+                      />
+                    </div>
 
-                    <div className="flex gap-2 pt-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#8E8E93] uppercase tracking-wide mb-1">Şifre (Değiştirmek için girin)</label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type={showEditPassword ? 'text' : 'password'}
+                            value={editPassword}
+                            onChange={(e) => setEditPassword(e.target.value)}
+                            placeholder="Yeni şifre girin"
+                            className="w-full font-mono text-xs px-3.5 py-2.5 pr-9 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowEditPassword(!showEditPassword)}
+                            className="absolute right-2 top-2.5 text-[#8E8E93] hover:text-ink p-0.5 rounded-lg transition-colors ios-press"
+                            title={showEditPassword ? 'Şifreyi Gizle' : 'Şifreyi Göster'}
+                          >
+                            {showEditPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditPassword(generatePin(8));
+                            setShowEditPassword(true);
+                          }}
+                          className="px-3 py-2 bg-[#34C759]/10 text-[#34C759] border border-[#34C759]/20 text-xs font-semibold rounded-xl hover:bg-[#34C759]/20 transition-all flex-shrink-0 ios-press"
+                        >
+                          Otomatik
+                        </button>
+                      </div>
+                    </div>
+
+                    {editError && <p className="text-[#FF3B30] text-xs font-medium bg-[#FF3B30]/10 p-2.5 rounded-xl border border-[#FF3B30]/20">{editError}</p>}
+
+                    <div className="flex gap-2 pt-1">
                       <button
                         type="button"
                         disabled={saveLoading}
                         onClick={() => handleSaveEdit(t.id)}
-                        className="flex-1 bg-brandGreen text-white font-semibold py-1.5 rounded text-xs hover:opacity-90 disabled:opacity-50"
+                        className="flex-1 bg-[#007AFF] text-white font-semibold py-2.5 rounded-xl text-xs hover:bg-[#0071E3] disabled:opacity-50 ios-press"
                       >
                         {saveLoading ? 'Kaydediliyor…' : 'Kaydet'}
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingTeacherId(null)}
-                        className="flex-1 border border-ink/20 text-muted font-semibold py-1.5 rounded text-xs hover:bg-white"
+                        className="flex-1 bg-[#F2F2F7] text-[#8E8E93] font-semibold py-2.5 rounded-xl text-xs hover:bg-[#E5E5EA] ios-press"
                       >
                         Vazgeç
                       </button>
@@ -428,20 +445,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               }
 
               return (
-                <div key={t.id} className="notebook-card space-y-3">
+                <div key={t.id} className="notebook-card p-4 sm:p-5 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h4 className="font-serif font-bold text-base text-ink">{t.name}</h4>
-                      <p className="text-xs text-muted">
+                      <h4 className="font-bold text-base text-ink tracking-tight">{t.name}</h4>
+                      <p className="text-xs text-[#8E8E93] mt-0.5">
                         {t.student_count || 0} öğrenci · {fmtDate(t.created_at)}
                       </p>
                     </div>
                   </div>
 
-                  <div className="space-y-1.5 text-xs bg-cream/60 p-2.5 rounded-md">
+                  <div className="text-xs bg-[#F2F2F7] p-2.5 rounded-xl border border-black/[0.04]">
                     <div className="flex justify-between items-center">
-                      <span className="font-mono text-[11px] text-muted uppercase">Kullanıcı Adı:</span>
-                      <span className="font-mono font-medium text-ink">{t.username}</span>
+                      <span className="text-[11px] text-[#8E8E93] uppercase font-semibold">Kullanıcı Adı:</span>
+                      <span className="font-mono font-semibold text-ink">{t.username}</span>
                     </div>
                   </div>
 
@@ -449,15 +466,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <button
                       type="button"
                       onClick={() => onViewTeacherActivity(t.id)}
-                      className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2.5 rounded border border-ink/15 text-xs font-semibold text-ink bg-white hover:bg-cream transition-colors"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold text-[#007AFF] bg-[#007AFF]/10 hover:bg-[#007AFF]/15 transition-all ios-press"
                     >
-                      <Users className="w-3.5 h-3.5 text-brandGreen" />
+                      <Users className="w-3.5 h-3.5 text-[#007AFF]" />
                       <span>Öğrencileri Gör</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => startEdit(t)}
-                      className="p-1.5 rounded border border-brandGreen/30 text-brandGreen hover:bg-successBg transition-colors"
+                      className="p-2.5 rounded-xl text-[#007AFF] bg-[#007AFF]/10 hover:bg-[#007AFF]/20 transition-all ios-press"
                       title="Düzenle"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
@@ -465,7 +482,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <button
                       type="button"
                       onClick={() => handleDeleteTeacher(t)}
-                      className="p-1.5 rounded border border-brandRed/30 text-brandRed hover:bg-dangerBg transition-colors"
+                      className="p-2.5 rounded-xl text-[#FF3B30] bg-[#FF3B30]/10 hover:bg-[#FF3B30]/20 transition-all ios-press"
                       title="Sil"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import { Student, StudentEntry } from '../types';
 import { SUBJECTS, fmtDate, fmtDateTime, todayStr, entryTotal, weekRange, inRange, sumEntries } from './utils';
+import { WeekSummary, MonthSummary } from './calendarUtils';
 
 // ExcelJS Dosya İndirme Yardımcı Fonksiyonu
 async function saveWorkbook(wb: ExcelJS.Workbook, filename: string) {
@@ -373,3 +374,127 @@ export async function exportStudentFullReport(student: Student, chartCanvas?: HT
 
   await saveWorkbook(wb, `${student.name.replace(/\s+/g, '-')}-rapor.xlsx`);
 }
+
+// ExcelJS: Haftalık ve Aylık Soru Takvimi Raporu
+export async function exportWeeklyCalendarExcel(
+  studentName: string,
+  weeks: WeekSummary[],
+  months: MonthSummary[],
+  grandTotal: number,
+  dailyTarget?: number | null
+) {
+  const wb = new ExcelJS.Workbook();
+
+  // 1. Sayfa: Haftalık Takvim
+  const wsWeeks = wb.addWorksheet('Haftalık Takvim');
+  wsWeeks.views = [{ showGridLines: true }];
+
+  // Başlıklar
+  const titleRow1 = wsWeeks.addRow([`ÖĞRENCİ: ${studentName}`, '', '', '', '', '', '', '', '', '']);
+  titleRow1.font = { bold: true, size: 13 };
+  const titleRow2 = wsWeeks.addRow([
+    `GENEL TOPLAM: ${grandTotal} Soru`,
+    '',
+    '',
+    `GÜNLÜK HEDEF: ${dailyTarget != null ? dailyTarget + ' Soru' : '-'}`,
+    '',
+    '',
+    '',
+    '',
+    '',
+    `RAPOR: ${todayStr()}`,
+  ]);
+  titleRow2.font = { bold: true };
+  wsWeeks.addRow([]);
+
+  const hRow = wsWeeks.addRow([
+    'Ay',
+    'Hafta Aralığı',
+    'Pazartesi',
+    'Salı',
+    'Çarşamba',
+    'Perşembe',
+    'Cuma',
+    'Cumartesi',
+    'Pazar',
+    'Hafta Toplamı',
+    'Günlük Ort.',
+  ]);
+  hRow.font = { bold: true };
+  hRow.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  // Sütun genişlikleri
+  wsWeeks.getColumn(1).width = 16;
+  wsWeeks.getColumn(2).width = 28;
+  wsWeeks.getColumn(3).width = 12;
+  wsWeeks.getColumn(4).width = 12;
+  wsWeeks.getColumn(5).width = 12;
+  wsWeeks.getColumn(6).width = 12;
+  wsWeeks.getColumn(7).width = 12;
+  wsWeeks.getColumn(8).width = 12;
+  wsWeeks.getColumn(9).width = 12;
+  wsWeeks.getColumn(10).width = 16;
+  wsWeeks.getColumn(11).width = 14;
+
+  weeks.forEach((w) => {
+    const dayTotals = w.days.map((d) => d.total || 0);
+    const row = wsWeeks.addRow([
+      w.monthName,
+      w.label,
+      ...dayTotals,
+      w.totalQuestions,
+      w.dailyAverage,
+    ]);
+
+    row.alignment = { horizontal: 'center' };
+    row.getCell(2).alignment = { horizontal: 'left' };
+    row.getCell(10).font = { bold: true };
+  });
+
+  wsWeeks.addRow([]);
+  const totalRow = wsWeeks.addRow(['', 'GENEL TOPLAM', '', '', '', '', '', '', '', grandTotal, '']);
+  totalRow.font = { bold: true, size: 12 };
+
+  // 2. Sayfa: Aylık Özet
+  const wsMonths = wb.addWorksheet('Aylık Özet');
+  wsMonths.columns = [
+    { header: 'Ay', key: 'm', width: 20 },
+    { header: 'Hafta Sayısı', key: 'w', width: 14 },
+    { header: 'Toplam Çözülen Soru', key: 'tot', width: 22 },
+    { header: 'Günlük Ortalama', key: 'avg', width: 18 },
+  ];
+  wsMonths.getRow(1).font = { bold: true };
+
+  months.forEach((m) => {
+    wsMonths.addRow({
+      m: m.monthName,
+      w: m.weeks.length,
+      tot: m.totalQuestions,
+      avg: m.dailyAverage,
+    });
+  });
+
+  // 3. Sayfa: Haftalık Ders Dağılımı
+  const wsSubjects = wb.addWorksheet('Haftalık Ders Dağılımı');
+  wsSubjects.columns = [
+    { header: 'Hafta Aralığı', key: 'week', width: 30 },
+    ...SUBJECTS.map((s) => ({ header: s, key: s, width: 16 })),
+    { header: 'Hafta Toplamı', key: 'total', width: 16 },
+  ];
+  wsSubjects.getRow(1).font = { bold: true };
+
+  weeks.forEach((w) => {
+    const rowObj: any = {
+      week: w.label,
+      total: w.totalQuestions,
+    };
+    SUBJECTS.forEach((s) => {
+      rowObj[s] = w.subjectTotals[s] || 0;
+    });
+    wsSubjects.addRow(rowObj);
+  });
+
+  const filename = `${studentName.replace(/\s+/g, '-')}-soru-takvimi-${todayStr()}.xlsx`;
+  await saveWorkbook(wb, filename);
+}
+

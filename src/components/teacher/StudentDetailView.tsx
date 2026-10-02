@@ -21,10 +21,9 @@ import {
   relDateLabel,
   weekRange,
   inRange,
-  sumEntries,
-  entryTotal,
 } from '../../lib/utils';
 import { exportStudentFullReport } from '../../lib/excel';
+import { WeeklyMonthlyCalendar } from '../common/WeeklyMonthlyCalendar';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
@@ -83,43 +82,35 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
 
   // Calculate statistics
   const entries = student.entries || [];
-  const today = todayStr();
   const [wStart, wEnd] = weekRange(0);
-  const [lwStart, lwEnd] = weekRange(-1);
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-
-  const stats = [
-    { label: 'Bugün', value: sumEntries(entries, (d) => d === today) },
-    { label: 'Bu Hafta', value: sumEntries(entries, (d) => inRange(d, wStart, wEnd)) },
-    { label: 'Geçen Hafta', value: sumEntries(entries, (d) => inRange(d, lwStart, lwEnd)) },
-    { label: 'Bu Ay', value: sumEntries(entries, (d) => inRange(d, monthStart, monthEnd)) },
-    { label: 'Geçen Ay', value: sumEntries(entries, (d) => inRange(d, lastMonthStart, lastMonthEnd)) },
-    { label: 'Tüm Zamanlar', value: entries.reduce((sum, e) => sum + entryTotal(e), 0) },
-  ];
+  const currentMonthPrefix = todayStr().slice(0, 7); // 'YYYY-MM'
 
   // Subject table calculations
   const weekBySubject: Record<string, number> = {};
+  const monthBySubject: Record<string, number> = {};
   const totalBySubject: Record<string, number> = {};
   SUBJECTS.forEach((s) => {
     weekBySubject[s] = 0;
+    monthBySubject[s] = 0;
     totalBySubject[s] = 0;
   });
   entries.forEach((e) => {
     const inWeek = inRange(e.date, wStart, wEnd);
+    const inMonth = e.date.startsWith(currentMonthPrefix);
     Object.entries(e.subjects || {}).forEach(([subj, count]) => {
       const c = Number(count) || 0;
       if (!(subj in totalBySubject)) {
         totalBySubject[subj] = 0;
         weekBySubject[subj] = 0;
+        monthBySubject[subj] = 0;
       }
       totalBySubject[subj] += c;
       if (inWeek) weekBySubject[subj] += c;
+      if (inMonth) monthBySubject[subj] += c;
     });
   });
+  const weekTotal = Object.values(weekBySubject).reduce((a, b) => a + b, 0);
+  const monthTotal = Object.values(monthBySubject).reduce((a, b) => a + b, 0);
   const grandTotal = Object.values(totalBySubject).reduce((a, b) => a + b, 0);
 
   // Check if chosen entry date already has a record
@@ -410,105 +401,116 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
       <button
         type="button"
         onClick={onBack}
-        className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-ink font-semibold transition-colors"
+        className="ios-press inline-flex items-center gap-1.5 text-sm text-[#007AFF] hover:text-[#005bb5] font-semibold transition-all"
       >
-        <ArrowLeft className="w-3.5 h-3.5" />
-        <span>Öğrenci listesine dön</span>
+        <ArrowLeft className="w-4 h-4" />
+        <span>Öğrenci Listesi</span>
       </button>
 
       <div>
-        <span className="font-mono text-xs uppercase tracking-wider text-muted font-semibold">
-          ÖĞRENCİ
+        <span className="text-xs uppercase tracking-wide text-[#8E8E93] font-semibold">
+          ÖĞRENCİ PROFİLİ
         </span>
-        <h2 className="font-serif text-2xl font-bold text-ink">{student.name}</h2>
+        <h2 className="text-2xl font-bold text-ink tracking-tight">{student.name}</h2>
       </div>
 
       {/* Son Giriş */}
-      <div className="notebook-card">
-        <div className="font-mono text-xs uppercase tracking-wider text-muted font-semibold mb-1">
+      <div className="notebook-card p-4 sm:p-5">
+        <div className="text-xs uppercase tracking-wide text-[#8E8E93] font-semibold mb-1">
           Son Soru Girişi
         </div>
-        <p className="font-mono text-base font-semibold text-ink">
+        <p className="text-lg font-bold text-ink">
           {relDateLabel(student.last_entry_date)}
         </p>
       </div>
 
-      {/* İstatistikler */}
-      <div className="notebook-card">
-        <h3 className="font-serif text-lg font-semibold text-ink mb-3">İstatistikler</h3>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          {stats.map((st) => (
-            <div
-              key={st.label}
-              className="bg-cream/70 rounded-md p-2.5 text-center border border-ink/5"
-            >
-              <div className="font-mono text-xl sm:text-2xl font-bold text-ink">{st.value}</div>
-              <div className="text-[10px] sm:text-xs font-mono uppercase text-muted tracking-wider mt-1">
-                {st.label}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Haftalık ve Aylık Soru Takvimi */}
+      <WeeklyMonthlyCalendar
+        studentName={student.name}
+        entries={student.entries || []}
+        dailyTarget={student.daily_target}
+        onSelectDate={(d) => setEntryDate(d)}
+      />
 
       {/* Derslere Göre */}
-      <div className="notebook-card">
-        <h3 className="font-serif text-lg font-semibold text-ink mb-3">Derslere Göre</h3>
+      <div className="notebook-card p-5 sm:p-6">
+        <h3 className="text-lg font-bold text-ink tracking-tight mb-3">Derslere Göre Dağılım</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-ink/10 text-muted font-mono uppercase text-[10px]">
-                <th className="py-2 px-1">Ders</th>
-                <th className="py-2 px-1 text-right">Bu Hafta</th>
-                <th className="py-2 px-1 text-right">Toplam</th>
-                <th className="py-2 px-1 text-right">Yüzde</th>
+              <tr className="border-b border-black/[0.08] text-[#8E8E93] uppercase font-semibold text-[10px] tracking-wider">
+                <th className="py-2.5 px-2">Ders</th>
+                <th className="py-2.5 px-2 text-right">Bu Hafta</th>
+                <th className="py-2.5 px-2 text-right">Bu Ay</th>
+                <th className="py-2.5 px-2 text-right">Toplam</th>
+                <th className="py-2.5 px-2 text-right">Oran</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-black/[0.04]">
               {SUBJECTS.map((subj) => {
                 const pct =
                   grandTotal > 0
                     ? Math.round(((totalBySubject[subj] || 0) / grandTotal) * 100)
                     : 0;
                 return (
-                  <tr key={subj} className="border-b border-ink/5 hover:bg-cream/40">
-                    <td className="py-2 px-1 font-medium text-ink">{subj}</td>
-                    <td className="py-2 px-1 text-right font-mono text-muted">
+                  <tr key={subj} className="hover:bg-[#F2F2F7]/60 transition-colors">
+                    <td className="py-2.5 px-2 font-semibold text-ink">{subj}</td>
+                    <td className="py-2.5 px-2 text-right font-medium text-[#8E8E93]">
                       {weekBySubject[subj] || 0}
                     </td>
-                    <td className="py-2 px-1 text-right font-mono font-semibold text-ink">
+                    <td className="py-2.5 px-2 text-right text-[#34C759] font-semibold">
+                      {monthBySubject[subj] || 0}
+                    </td>
+                    <td className="py-2.5 px-2 text-right font-bold text-ink">
                       {totalBySubject[subj] || 0}
                     </td>
-                    <td className="py-2 px-1 text-right font-mono text-brandGreen font-semibold">
+                    <td className="py-2.5 px-2 text-right text-[#FF9500] font-semibold">
                       %{pct}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-black/[0.08] font-bold bg-[#F2F2F7]/50 text-ink">
+                <td className="py-3 px-2 font-bold">Toplam</td>
+                <td className="py-3 px-2 text-right text-[#8E8E93]">
+                  {weekTotal.toLocaleString('tr-TR')}
+                </td>
+                <td className="py-3 px-2 text-right text-[#34C759]">
+                  {monthTotal.toLocaleString('tr-TR')}
+                </td>
+                <td className="py-3 px-2 text-right text-ink">
+                  {grandTotal.toLocaleString('tr-TR')}
+                </td>
+                <td className="py-3 px-2 text-right text-[#FF9500]">
+                  %100
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
 
       {/* Denemeler */}
-      <div className="notebook-card">
-        <h3 className="font-serif text-lg font-semibold text-ink mb-3">Denemeler</h3>
+      <div className="notebook-card p-5 sm:p-6">
+        <h3 className="text-lg font-bold text-ink tracking-tight mb-3">Denemeler</h3>
 
         <form onSubmit={handleAddDeneme} className="space-y-3 mb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             <div>
-              <label className="block text-xs font-semibold text-muted mb-1">Deneme Adı</label>
+              <label className="block text-xs font-semibold text-[#8E8E93] uppercase tracking-wide mb-1">Deneme Adı</label>
               <input
                 type="text"
                 placeholder="Örn: 3. Deneme"
                 value={denemeName}
                 onChange={(e) => setDenemeName(e.target.value)}
                 required
-                className="w-full text-xs px-2.5 py-2 rounded border border-ink/20 bg-white"
+                className="w-full text-xs px-3 py-2.5 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF9500]/30 transition-all"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-muted mb-1">Puan</label>
+              <label className="block text-xs font-semibold text-[#8E8E93] uppercase tracking-wide mb-1">Puan</label>
               <input
                 type="number"
                 step="0.01"
@@ -517,28 +519,28 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                 value={denemeScore}
                 onChange={(e) => setDenemeScore(e.target.value)}
                 required
-                className="w-full text-xs px-2.5 py-2 rounded border border-ink/20 bg-white font-mono"
+                className="w-full text-xs px-3 py-2.5 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF9500]/30 transition-all font-mono"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-muted mb-1">Tarih</label>
+              <label className="block text-xs font-semibold text-[#8E8E93] uppercase tracking-wide mb-1">Tarih</label>
               <input
                 type="date"
                 max={todayStr()}
                 value={denemeDate}
                 onChange={(e) => setDenemeDate(e.target.value)}
                 required
-                className="w-full text-xs px-2.5 py-2 rounded border border-ink/20 bg-white"
+                className="w-full text-xs px-3 py-2.5 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF9500]/30 transition-all"
               />
             </div>
           </div>
 
-          {denemeError && <p className="text-brandRed text-xs">{denemeError}</p>}
+          {denemeError && <p className="text-[#FF3B30] text-xs font-medium bg-[#FF3B30]/10 p-2.5 rounded-xl border border-[#FF3B30]/20">{denemeError}</p>}
 
           <button
             type="submit"
             disabled={denemeLoading}
-            className="w-full inline-flex items-center justify-center gap-1.5 bg-brandGreen text-white text-xs font-semibold py-2 px-3 rounded hover:opacity-90 disabled:opacity-50"
+            className="w-full inline-flex items-center justify-center gap-1.5 bg-[#FF9500] hover:bg-[#E08500] text-white text-xs font-semibold py-2.5 px-3 rounded-xl shadow-xs disabled:opacity-50 ios-press transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{denemeLoading ? 'Ekleniyor…' : 'Deneme Ekle'}</span>
@@ -560,19 +562,19 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
               />
             </div>
 
-            <div className="divide-y divide-ink/10">
+            <div className="divide-y divide-black/[0.06]">
               {sortedDenemeler.slice().reverse().map((d) => (
                 <div key={d.id} className="py-2.5 flex items-center justify-between text-xs">
                   <div>
                     <div className="font-semibold text-ink">{d.name}</div>
-                    <div className="text-[11px] text-muted">{fmtDate(d.date)}</div>
+                    <div className="text-[11px] text-[#8E8E93]">{fmtDate(d.date)}</div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="font-mono font-bold text-sm text-brandGold">{d.score}</span>
+                    <span className="font-mono font-bold text-sm text-[#FF9500] bg-[#FF9500]/10 px-2 py-0.5 rounded-md">{d.score}</span>
                     <button
                       type="button"
                       onClick={() => handleDeleteDeneme(d.id)}
-                      className="text-brandRed hover:underline text-xs"
+                      className="text-[#FF3B30] hover:opacity-80 text-xs font-semibold ios-press"
                     >
                       Sil
                     </button>
@@ -582,30 +584,30 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             </div>
           </>
         ) : (
-          <p className="text-xs text-muted text-center py-3">Henüz kayıtlı deneme bulunmuyor.</p>
+          <p className="text-xs text-[#8E8E93] text-center py-3">Henüz kayıtlı deneme bulunmuyor.</p>
         )}
       </div>
 
       {/* Boş Güne Soru Girişi */}
-      <div className="notebook-card">
-        <h3 className="font-serif text-lg font-semibold text-ink mb-1">Boş Güne Soru Girişi</h3>
-        <p className="text-xs text-muted mb-3">
+      <div className="notebook-card p-5 sm:p-6">
+        <h3 className="text-lg font-bold text-ink tracking-tight mb-1">Boş Güne Soru Girişi</h3>
+        <p className="text-xs text-[#8E8E93] mb-3">
           Öğrenci girmeyi unutursa, sadece kaydı olmayan bir gün için soru girebilirsiniz. Girilmiş günler değiştirilemez.
         </p>
 
         <div className="mb-3">
-          <label className="block text-xs font-semibold text-muted mb-1">Tarih</label>
+          <label className="block text-xs font-semibold text-[#8E8E93] uppercase tracking-wide mb-1">Tarih</label>
           <input
             type="date"
             max={todayStr()}
             value={entryDate}
             onChange={(e) => setEntryDate(e.target.value)}
-            className="w-full text-xs px-3 py-2 rounded border border-ink/20 bg-white"
+            className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#34C759]/30 transition-all"
           />
         </div>
 
         {isDateLocked ? (
-          <div className="p-3 bg-dangerBg text-brandRed rounded text-xs mb-3 border border-brandRed/20">
+          <div className="p-3 bg-[#FF3B30]/10 text-[#FF3B30] rounded-xl text-xs mb-3 border border-[#FF3B30]/20 font-medium">
             Bu gün için zaten soru kaydı bulunmaktadır — kilitlidir ve değiştirilemez.
           </div>
         ) : (
@@ -613,7 +615,7 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             <div className="grid grid-cols-2 gap-2 mb-3">
               {SUBJECTS.map((subj) => (
                 <div key={subj}>
-                  <label className="block text-[11px] font-semibold text-muted mb-0.5">
+                  <label className="block text-[11px] font-semibold text-[#8E8E93] mb-0.5">
                     {subj}
                   </label>
                   <input
@@ -628,7 +630,7 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                       })
                     }
                     placeholder="0"
-                    className="w-full text-xs px-2.5 py-1.5 rounded border border-ink/20 bg-white font-mono"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#34C759]/30 font-mono transition-all"
                   />
                 </div>
               ))}
@@ -636,10 +638,10 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
 
             {entryMsg && (
               <p
-                className={`text-xs p-2 rounded mb-2 ${
+                className={`text-xs p-2.5 rounded-xl mb-2 font-medium ${
                   entryMsg.type === 'error'
-                    ? 'text-brandRed bg-dangerBg'
-                    : 'text-brandGreen bg-successBg'
+                    ? 'text-[#FF3B30] bg-[#FF3B30]/10 border border-[#FF3B30]/20'
+                    : 'text-[#34C759] bg-[#34C759]/10 border border-[#34C759]/20'
                 }`}
               >
                 {entryMsg.text}
@@ -650,7 +652,7 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
               type="button"
               disabled={entrySaving}
               onClick={handleSaveEntry}
-              className="w-full inline-flex items-center justify-center gap-1 bg-brandGreen text-white text-xs font-semibold py-2 px-3 rounded hover:opacity-90 disabled:opacity-50"
+              className="w-full inline-flex items-center justify-center gap-1.5 bg-[#34C759] hover:bg-[#30B753] text-white text-xs font-semibold py-2.5 px-3 rounded-xl shadow-xs disabled:opacity-50 ios-press transition-all"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{entrySaving ? 'Kaydediliyor…' : 'Kaydet'}</span>
@@ -660,54 +662,54 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
       </div>
 
       {/* Haftalık Plan */}
-      <div className="notebook-card">
-        <h3 className="font-serif text-lg font-semibold text-ink mb-1">
+      <div className="notebook-card p-5 sm:p-6">
+        <h3 className="text-lg font-bold text-ink tracking-tight mb-1">
           Haftaya Dair Planlananlar ve Öneriler
         </h3>
-        <p className="text-xs text-muted mb-2">Öğrenci bu alanı kendi panelinde salt-okunur olarak görür.</p>
+        <p className="text-xs text-[#8E8E93] mb-2.5">Öğrenci bu alanı kendi panelinde salt-okunur olarak görür.</p>
         <textarea
           rows={3}
           value={weeklyPlan}
           onChange={(e) => setWeeklyPlan(e.target.value)}
           placeholder="Bu hafta öğrenciden beklentileriniz..."
-          className="w-full text-xs p-2.5 rounded border border-ink/20 bg-white mb-2"
+          className="w-full text-xs p-3 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 mb-2.5 transition-all"
         />
         <button
           type="button"
           disabled={planSaving}
           onClick={handleSavePlan}
-          className="w-full bg-brandGreen text-white text-xs font-semibold py-2 px-3 rounded hover:opacity-90 disabled:opacity-50"
+          className="w-full bg-[#007AFF] hover:bg-[#0071E3] text-white text-xs font-semibold py-2.5 px-3 rounded-xl shadow-xs disabled:opacity-50 ios-press transition-all"
         >
           {planSaving ? 'Kaydediliyor…' : 'Planı Kaydet'}
         </button>
       </div>
 
       {/* Rehberlik Notu */}
-      <div className="notebook-card">
-        <h3 className="font-serif text-lg font-semibold text-ink mb-1">
+      <div className="notebook-card p-5 sm:p-6">
+        <h3 className="text-lg font-bold text-ink tracking-tight mb-1">
           Rehberlik Görüş ve Öneriler
         </h3>
-        <p className="text-xs text-muted mb-2">Öğrenci bu alanı kendi panelinde salt-okunur olarak görür.</p>
+        <p className="text-xs text-[#8E8E93] mb-2.5">Öğrenci bu alanı kendi panelinde salt-okunur olarak görür.</p>
         <textarea
           rows={3}
           value={guidanceNote}
           onChange={(e) => setGuidanceNote(e.target.value)}
           placeholder="Motivasyon ve çalışma alışkanlıkları gözlemleriniz..."
-          className="w-full text-xs p-2.5 rounded border border-ink/20 bg-white mb-2"
+          className="w-full text-xs p-3 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 mb-2.5 transition-all"
         />
         <button
           type="button"
           disabled={guidanceSaving}
           onClick={handleSaveGuidance}
-          className="w-full bg-brandGreen text-white text-xs font-semibold py-2 px-3 rounded hover:opacity-90 disabled:opacity-50"
+          className="w-full bg-[#007AFF] hover:bg-[#0071E3] text-white text-xs font-semibold py-2.5 px-3 rounded-xl shadow-xs disabled:opacity-50 ios-press transition-all"
         >
           {guidanceSaving ? 'Kaydediliyor…' : 'Notu Kaydet'}
         </button>
       </div>
 
       {/* Günlük Hedef */}
-      <div className="notebook-card">
-        <h3 className="font-serif text-lg font-semibold text-ink mb-2">Günlük Hedef</h3>
+      <div className="notebook-card p-5 sm:p-6">
+        <h3 className="text-lg font-bold text-ink tracking-tight mb-2">Günlük Hedef</h3>
         <div className="flex gap-2">
           <input
             type="number"
@@ -716,13 +718,13 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             value={dailyTarget}
             onChange={(e) => setDailyTarget(e.target.value)}
             placeholder="Hedef soru sayısı (opsiyonel)"
-            className="flex-1 text-xs px-3 py-2 rounded border border-ink/20 bg-white font-mono"
+            className="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#34C759]/30 font-mono transition-all"
           />
           <button
             type="button"
             disabled={targetSaving}
             onClick={handleSaveTarget}
-            className="bg-brandGreen text-white text-xs font-semibold px-4 py-2 rounded hover:opacity-90 disabled:opacity-50"
+            className="bg-[#34C759] hover:bg-[#30B753] text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-xs disabled:opacity-50 ios-press transition-all"
           >
             {targetSaving ? 'Kaydediliyor…' : 'Kaydet'}
           </button>
@@ -730,16 +732,16 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
       </div>
 
       {/* Excel Rapor İndir */}
-      <div className="notebook-card">
-        <h3 className="font-serif text-lg font-semibold text-ink mb-1">Excel Olarak İndir</h3>
-        <p className="text-xs text-muted mb-3">
+      <div className="notebook-card p-5 sm:p-6">
+        <h3 className="text-lg font-bold text-ink tracking-tight mb-1">Excel Olarak İndir</h3>
+        <p className="text-xs text-[#8E8E93] mb-3">
           Özet, ders dağılımları, günlük sorular, deneme tablosu ve grafik görseli içeren tam öğrenci raporu.
         </p>
         <button
           type="button"
           disabled={exportLoading}
           onClick={handleExportReport}
-          className="w-full inline-flex items-center justify-center gap-2 bg-brandGreen text-white text-xs sm:text-sm font-semibold py-2.5 px-4 rounded shadow-sm hover:opacity-90 disabled:opacity-50"
+          className="w-full inline-flex items-center justify-center gap-2 bg-[#34C759] hover:bg-[#30B753] text-white text-sm font-semibold py-3 px-4 rounded-xl shadow-sm disabled:opacity-50 ios-press transition-all"
         >
           <Download className="w-4 h-4" />
           <span>{exportLoading ? 'Rapor Oluşturuluyor…' : 'Excel Raporu İndir'}</span>
@@ -747,20 +749,20 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
       </div>
 
       {/* Giriş Bilgileri */}
-      <div className="notebook-card space-y-2">
-        <h3 className="font-serif text-lg font-semibold text-ink mb-2">Giriş Bilgileri</h3>
+      <div className="notebook-card p-5 sm:p-6 space-y-3">
+        <h3 className="text-lg font-bold text-ink tracking-tight mb-1">Giriş Bilgileri</h3>
         <div>
-          <label className="block text-xs font-semibold text-muted mb-1">Kullanıcı Adı</label>
+          <label className="block text-xs font-semibold text-[#8E8E93] uppercase tracking-wide mb-1">Kullanıcı Adı</label>
           <input
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full text-xs px-3 py-2 rounded border border-ink/20 bg-white"
+            className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition-all"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-muted mb-1">
-            Yeni Şifre <span className="font-normal text-muted/70">(değiştirmek için doldurun)</span>
+          <label className="block text-xs font-semibold text-[#8E8E93] uppercase tracking-wide mb-1">
+            Yeni Şifre <span className="normal-case text-[#8E8E93]/70 font-normal">(değiştirmek için doldurun)</span>
           </label>
           <div className="relative">
             <input
@@ -768,39 +770,39 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Değiştirmek için yeni şifre girin"
-              className="w-full text-xs px-3 py-2 pr-9 rounded border border-ink/20 bg-white font-mono"
+              className="w-full text-xs px-3.5 py-2.5 pr-10 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 font-mono transition-all"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2 top-2 text-muted hover:text-ink p-0.5 rounded transition-colors"
+              className="absolute right-2.5 top-2.5 text-[#8E8E93] hover:text-ink p-0.5 rounded-lg transition-colors ios-press"
               title={showPassword ? 'Şifreyi Gizle' : 'Şifreyi Göster'}
             >
               {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             </button>
           </div>
         </div>
-        {credError && <p className="text-brandRed text-xs">{credError}</p>}
+        {credError && <p className="text-[#FF3B30] text-xs font-medium bg-[#FF3B30]/10 p-2.5 rounded-xl border border-[#FF3B30]/20">{credError}</p>}
         <button
           type="button"
           disabled={credSaving}
           onClick={handleSaveCredentials}
-          className="w-full bg-brandGreen text-white text-xs font-semibold py-2 px-3 rounded hover:opacity-90 disabled:opacity-50 mt-1"
+          className="w-full bg-[#007AFF] hover:bg-[#0071E3] text-white text-xs font-semibold py-2.5 px-3 rounded-xl shadow-xs disabled:opacity-50 ios-press transition-all mt-1"
         >
           {credSaving ? 'Kaydediliyor…' : 'Giriş Bilgilerini Kaydet'}
         </button>
       </div>
 
       {/* Tehlikeli Bölge */}
-      <div className="notebook-card border border-brandRed/30">
-        <h3 className="font-serif text-lg font-semibold text-brandRed mb-1">Tehlikeli Bölge</h3>
-        <p className="text-xs text-muted mb-3">
+      <div className="notebook-card p-5 sm:p-6 border border-[#FF3B30]/30 bg-[#FF3B30]/[0.02]">
+        <h3 className="text-lg font-bold text-[#FF3B30] tracking-tight mb-1">Tehlikeli Bölge</h3>
+        <p className="text-xs text-[#8E8E93] mb-3">
           Öğrenciyi ve tüm kayıtlarını (sorular, denemeler, plan ve notlar) kalıcı olarak siler.
         </p>
         <button
           type="button"
           onClick={handleDeleteStudent}
-          className="w-full inline-flex items-center justify-center gap-1.5 bg-brandRed text-white text-xs font-semibold py-2 px-3 rounded hover:opacity-90"
+          className="w-full inline-flex items-center justify-center gap-1.5 bg-[#FF3B30] hover:bg-[#E0352B] text-white text-xs font-semibold py-2.5 px-3 rounded-xl shadow-xs ios-press transition-all"
         >
           <Trash2 className="w-3.5 h-3.5" />
           <span>Öğrenciyi Sil</span>

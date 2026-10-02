@@ -2,55 +2,72 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --grid-line: rgba(66, 99, 133, 0.14);
-}
-
 body {
-  font-family: 'Inter', sans-serif;
-  color: #2A2A24;
-  background-color: #F7F2E6;
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 22px 22px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', system-ui, sans-serif;
+  color: #1C1C1E;
+  background: linear-gradient(135deg, #EEF2FF 0%, #FAF5FF 30%, #FFF1F2 65%, #F0FDF4 100%);
+  background-attachment: fixed;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Defter kenar çizgisi efekti */
+/* Apple iOS Inset Grouped & Canlı Kart Tasarımı */
 .notebook-card {
   position: relative;
-  background: #FFFDF8;
-  border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(42, 42, 36, 0.06), 0 4px 14px rgba(42, 42, 36, 0.08);
-  padding: 22px 20px 22px 32px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 20px -2px rgba(99, 102, 241, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+  padding: 20px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.notebook-card::before {
-  content: '';
-  position: absolute;
-  left: 20px;
-  top: 0;
-  bottom: 0;
-  width: 1.5px;
-  background: #C0392B;
-  opacity: 0.55;
-  border-radius: 1px;
+@media (min-width: 640px) {
+  .notebook-card {
+    padding: 24px;
+    border-radius: 22px;
+  }
 }
 
-/* Özel kaydırma çubuğu */
+/* iOS Tarzı İnce ve Saydam Kaydırma Çubuğu */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(42, 42, 36, 0.2);
-  border-radius: 3px;
+  background: rgba(60, 60, 67, 0.2);
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(42, 42, 36, 0.35);
+  background: rgba(60, 60, 67, 0.35);
+}
+
+/* iOS Tarzı Dokunsal Geri Bildirim (Haptic-like Micro-interaction) */
+.ios-press {
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.12s ease;
+}
+.ios-press:active {
+  transform: scale(0.975);
+  opacity: 0.88;
+}
+
+/* iOS Cam (Frosted Glass) Efekti */
+.ios-glass {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* iOS Segmented Control & Inset Kutuları */
+.ios-inset-box {
+  background: #F2F2F7;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.03);
 }
