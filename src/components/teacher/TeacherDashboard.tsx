@@ -163,7 +163,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ session, onL
     <div className="animate-fadeIn space-y-4">
       <Header
         roleBadge="ÖĞRETMEN"
-        title={`Merhaba, ${session.name}`}
+        title={`Merhaba ${session.name}, Mutlu Haftalar Dilerim!`}
         onLogout={onLogout}
         session={session}
       />
@@ -257,7 +257,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ session, onL
                     <span
                       className={`text-[11px] px-2.5 py-0.5 rounded-full font-semibold border ${
                         isToday
-                          ? 'bg-[#34C759]/15 text-[#34C759] border-[#34C759]/30'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                           : 'bg-[#FF3B30]/10 text-[#FF3B30] border-[#FF3B30]/20'
                       }`}
                     >
@@ -273,7 +273,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ session, onL
                     </div>
                     <div>
                       <div className="text-[10px] text-[#8E8E93] uppercase font-semibold">Bu Ay</div>
-                      <div className="font-bold text-base text-[#34C759] mt-0.5">{sMonthTotal}</div>
+                      <div className="font-bold text-base text-blue-600 mt-0.5">{sMonthTotal}</div>
                     </div>
                     <div>
                       <div className="text-[10px] text-[#8E8E93] uppercase font-semibold">Toplam</div>

@@ -30,16 +30,16 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <>
       <div className="flex items-center justify-between mb-5 pb-3 border-b border-black/[0.06]">
-        <div>
+        <div className="min-w-0 pr-2">
           <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase mb-1 ${badgeGradient}`}>
             {roleBadge === 'ÖĞRENCİ' ? '🎒 ' : roleBadge === 'ÖĞRETMEN' ? '📚 ' : '⚙️ '}
             {roleBadge}
           </span>
-          <h2 className="text-2xl font-black text-ink tracking-tight">
+          <h2 className="text-base sm:text-2xl font-black text-ink tracking-tight">
             {title}
           </h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {session && (
             <button
               type="button"

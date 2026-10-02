@@ -468,7 +468,7 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                     <td className="py-2.5 px-2 text-right font-medium text-[#8E8E93]">
                       {weekBySubject[subj] || 0}
                     </td>
-                    <td className="py-2.5 px-2 text-right text-[#34C759] font-semibold">
+                    <td className="py-2.5 px-2 text-right text-emerald-800 font-semibold">
                       {monthBySubject[subj] || 0}
                     </td>
                     <td className="py-2.5 px-2 text-right font-bold text-ink">
@@ -490,7 +490,7 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                 <td className="py-3 px-2 text-right text-[#8E8E93]">
                   {weekTotal.toLocaleString('tr-TR')}
                 </td>
-                <td className="py-3 px-2 text-right text-[#34C759]">
+                <td className="py-3 px-2 text-right text-emerald-800 font-bold">
                   {monthTotal.toLocaleString('tr-TR')}
                 </td>
                 <td className="py-3 px-2 text-right text-ink">
