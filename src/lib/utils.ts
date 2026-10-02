@@ -2,6 +2,7 @@ import { StudentEntry } from '../types';
 
 export const SUBJECTS = [
   'Türkçe',
+  'Paragraf',
   'Matematik',
   'Fen Bilimleri',
   'T.C. İnkılap Tarihi',

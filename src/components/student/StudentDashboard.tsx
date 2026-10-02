@@ -3,6 +3,7 @@ import {
   Save,
   Plus,
   BookOpen,
+  FileText,
   Calculator,
   FlaskConical,
   Landmark,
@@ -322,6 +323,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ session, onL
         data: SUBJECTS.map((s) => totalBySubject[s] || 0),
         backgroundColor: [
           '#FF2D55', // Türkçe (Canlı Pembe/Kırmızı)
+          '#00C7BE', // Paragraf (Canlı Turkuaz / Teal)
           '#007AFF', // Matematik (Elektrik Mavisi)
           '#10B981', // Fen Bilimleri (Zümrüt Yeşili)
           '#FF9500', // İnkılap (Sıcak Turuncu)
@@ -348,6 +350,14 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ session, onL
       ring: 'focus-within:ring-4 focus-within:ring-rose-500/20 focus-within:border-rose-500',
       badge: 'bg-rose-500 text-white',
       icon: <BookOpen className="w-4 h-4 text-rose-600" />,
+    },
+    'Paragraf': {
+      bgLight: 'bg-gradient-to-b from-teal-50/90 to-white',
+      border: 'border-teal-200 hover:border-teal-400',
+      text: 'text-teal-700',
+      ring: 'focus-within:ring-4 focus-within:ring-teal-500/20 focus-within:border-teal-500',
+      badge: 'bg-teal-500 text-white',
+      icon: <FileText className="w-4 h-4 text-teal-600" />,
     },
     'Matematik': {
       bgLight: 'bg-gradient-to-b from-blue-50/90 to-white',
@@ -482,7 +492,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ session, onL
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-4">
           {SUBJECTS.map((subj) => {
             const meta = SUBJECT_META[subj] || {
               bgLight: 'bg-white',

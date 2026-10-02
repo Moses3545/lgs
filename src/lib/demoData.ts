@@ -5,33 +5,33 @@ import { Student, StudentEntry } from '../types';
  */
 export function generateSampleEntries(): StudentEntry[] {
   return [
-    // --- 14 Ekim - 20 Ekim 2024 Haftası (Toplam: 520) ---
-    { date: '2024-10-14', subjects: { 'Türkçe': 25, 'Matematik': 30, 'Fen Bilimleri': 20 } },
-    { date: '2024-10-15', subjects: { 'Türkçe': 20, 'Matematik': 25, 'T.C. İnkılap Tarihi': 15, 'Din Kültürü': 15 } },
-    { date: '2024-10-16', subjects: { 'Fen Bilimleri': 35, 'İngilizce': 25, 'Matematik': 20 } },
-    { date: '2024-10-17', subjects: { 'Türkçe': 30, 'Matematik': 30, 'Fen Bilimleri': 25 } },
+    // --- 14 Ekim - 20 Ekim 2024 Haftası (Toplam: 540) ---
+    { date: '2024-10-14', subjects: { 'Türkçe': 25, 'Paragraf': 20, 'Matematik': 30, 'Fen Bilimleri': 20 } },
+    { date: '2024-10-15', subjects: { 'Türkçe': 20, 'Paragraf': 15, 'Matematik': 25, 'T.C. İnkılap Tarihi': 15, 'Din Kültürü': 15 } },
+    { date: '2024-10-16', subjects: { 'Fen Bilimleri': 35, 'Paragraf': 20, 'İngilizce': 25, 'Matematik': 20 } },
+    { date: '2024-10-17', subjects: { 'Türkçe': 30, 'Paragraf': 20, 'Matematik': 30, 'Fen Bilimleri': 25 } },
     { date: '2024-10-18', subjects: { 'T.C. İnkılap Tarihi': 20, 'Din Kültürü': 20, 'İngilizce': 25 } },
-    { date: '2024-10-19', subjects: { 'Matematik': 40, 'Fen Bilimleri': 35, 'Türkçe': 30 } },
+    { date: '2024-10-19', subjects: { 'Matematik': 40, 'Fen Bilimleri': 35, 'Türkçe': 30, 'Paragraf': 25 } },
     { date: '2024-10-20', subjects: { 'Türkçe': 25, 'Matematik': 35, 'Fen Bilimleri': 20 } },
 
-    // --- 21 Ekim - 27 Ekim 2024 Haftası (Toplam: 565) ---
-    { date: '2024-10-21', subjects: { 'Türkçe': 30, 'Matematik': 35, 'Fen Bilimleri': 25 } },
-    { date: '2024-10-22', subjects: { 'Matematik': 40, 'İngilizce': 20, 'Din Kültürü': 15 } },
-    { date: '2024-10-23', subjects: { 'Fen Bilimleri': 30, 'T.C. İnkılap Tarihi': 25, 'Türkçe': 25 } },
+    // --- 21 Ekim - 27 Ekim 2024 Haftası (Toplam: 585) ---
+    { date: '2024-10-21', subjects: { 'Türkçe': 30, 'Paragraf': 20, 'Matematik': 35, 'Fen Bilimleri': 25 } },
+    { date: '2024-10-22', subjects: { 'Matematik': 40, 'Paragraf': 15, 'İngilizce': 20, 'Din Kültürü': 15 } },
+    { date: '2024-10-23', subjects: { 'Fen Bilimleri': 30, 'T.C. İnkılap Tarihi': 25, 'Türkçe': 25, 'Paragraf': 20 } },
     { date: '2024-10-24', subjects: { 'Matematik': 35, 'Fen Bilimleri': 30, 'Türkçe': 25 } },
     { date: '2024-10-25', subjects: { 'Türkçe': 25, 'Din Kültürü': 20, 'İngilizce': 25 } },
-    { date: '2024-10-26', subjects: { 'Matematik': 45, 'Fen Bilimleri': 40, 'Türkçe': 30 } },
+    { date: '2024-10-26', subjects: { 'Matematik': 45, 'Fen Bilimleri': 40, 'Türkçe': 30, 'Paragraf': 20 } },
     { date: '2024-10-27', subjects: { 'T.C. İnkılap Tarihi': 25, 'Matematik': 30, 'Fen Bilimleri': 30 } },
 
     // --- 28 EKİM - 3/4 KASIM 2024 HAFTASI (KULLANICININ ÖRNEĞİ - Toplam: 635 Soru) ---
     // 28 Ekim Pazartesi
-    { date: '2024-10-28', subjects: { 'Türkçe': 30, 'Matematik': 35, 'Fen Bilimleri': 30 } }, // 95 soru
+    { date: '2024-10-28', subjects: { 'Türkçe': 30, 'Paragraf': 20, 'Matematik': 35, 'Fen Bilimleri': 30 } }, // 115 soru
     // 29 Ekim Salı (Cumhuriyet Bayramı)
-    { date: '2024-10-29', subjects: { 'Türkçe': 35, 'Matematik': 40, 'Fen Bilimleri': 35 } }, // 110 soru
+    { date: '2024-10-29', subjects: { 'Türkçe': 35, 'Paragraf': 25, 'Matematik': 40, 'Fen Bilimleri': 35 } }, // 135 soru
     // 30 Ekim Çarşamba
-    { date: '2024-10-30', subjects: { 'Türkçe': 25, 'Matematik': 30, 'Din Kültürü': 15, 'T.C. İnkılap Tarihi': 15 } }, // 85 soru
+    { date: '2024-10-30', subjects: { 'Türkçe': 25, 'Paragraf': 20, 'Matematik': 30, 'Din Kültürü': 15, 'T.C. İnkılap Tarihi': 15 } }, // 105 soru
     // 31 Ekim Perşembe
-    { date: '2024-10-31', subjects: { 'Matematik': 40, 'Fen Bilimleri': 30, 'İngilizce': 20 } }, // 90 soru
+    { date: '2024-10-31', subjects: { 'Matematik': 40, 'Fen Bilimleri': 30, 'İngilizce': 20, 'Paragraf': 20 } }, // 110 soru
     // 1 Kasım Cuma
     { date: '2024-11-01', subjects: { 'Türkçe': 25, 'Fen Bilimleri': 30, 'İngilizce': 25 } }, // 80 soru
     // 2 Kasım Cumartesi

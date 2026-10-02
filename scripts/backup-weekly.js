@@ -13,7 +13,7 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_S
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const SUBJECTS = ['Türkçe', 'Matematik', 'Fen Bilimleri', 'İnkılap Tarihi', 'Din Kültürü', 'İngilizce'];
+const SUBJECTS = ['Türkçe', 'Paragraf', 'Matematik', 'Fen Bilimleri', 'T.C. İnkılap Tarihi', 'Din Kültürü', 'İngilizce'];
 
 function getWeekRange() {
   const now = new Date();
