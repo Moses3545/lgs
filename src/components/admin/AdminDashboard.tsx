@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Download, RefreshCw, KeyRound, Edit2, Trash2, Users, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, Download, RefreshCw, KeyRound, Edit2, Trash2, Users, Eye, EyeOff, Mail, Calendar, FileJson, CheckCircle2, AlertCircle, Save } from 'lucide-react';
 import { sb } from '../../lib/supabase';
-import { Session, Teacher } from '../../types';
+import { Session, Teacher, Student } from '../../types';
 import { Header } from '../common/Header';
 import { generatePin, fmtDate } from '../../lib/utils';
-import { exportAllStudentsByAdmin } from '../../lib/excel';
+import { exportAllStudentsByAdmin, exportWeeklyTeacherBackup, exportFullJsonBackup } from '../../lib/excel';
+import { BackupEmailModal } from '../common/BackupEmailModal';
 
 interface AdminDashboardProps {
   session: Session;
@@ -40,6 +41,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Export all loading
   const [exportLoading, setExportLoading] = useState(false);
+  const [weeklyExportLoading, setWeeklyExportLoading] = useState(false);
+  const [jsonExportLoading, setJsonExportLoading] = useState(false);
+
+  // Backup email settings
+  const [backupEmail, setBackupEmail] = useState('');
+  const [savingBackupEmail, setSavingBackupEmail] = useState(false);
+  const [backupEmailMsg, setBackupEmailMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [allStudentsData, setAllStudentsData] = useState<Student[]>([]);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
 
   const fetchTeachers = async () => {
     setLoading(true);
@@ -77,8 +87,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const fetchBackupEmail = async () => {
+    try {
+      const { data, error: rpcError } = await sb.rpc('get_backup_email');
+      if (!rpcError && data && data.email) {
+        setBackupEmail(data.email);
+      }
+    } catch (err) {
+      console.error('fetchBackupEmail error:', err);
+    }
+  };
+
   useEffect(() => {
     fetchTeachers();
+    fetchBackupEmail();
   }, []);
 
   const handleAddTeacher = async (e: React.FormEvent) => {
@@ -215,6 +237,100 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const handleExportWeeklyAll = async () => {
+    setWeeklyExportLoading(true);
+    try {
+      const { data, error: rpcError } = await sb.rpc('admin_get_all_students_data', {
+        p_admin_id: session.id,
+      });
+
+      if (rpcError || !data || data.error) {
+        alert('Veriler alınamadı.');
+        return;
+      }
+
+      await exportWeeklyTeacherBackup('Tüm Okul', data.students || [], 0);
+    } catch {
+      alert('Haftalık Excel dışa aktarma hatası oluştu.');
+    } finally {
+      setWeeklyExportLoading(false);
+    }
+  };
+
+  const handleExportJsonAll = async () => {
+    setJsonExportLoading(true);
+    try {
+      const { data, error: rpcError } = await sb.rpc('admin_get_all_students_data', {
+        p_admin_id: session.id,
+      });
+
+      if (rpcError || !data || data.error) {
+        alert('Veriler alınamadı.');
+        return;
+      }
+
+      exportFullJsonBackup('LGS Tüm Veritabanı', {
+        exported_at: new Date().toISOString(),
+        admin_name: session.name,
+        backup_email: backupEmail,
+        teachers_count: teachers.length,
+        students_count: (data.students || []).length,
+        teachers,
+        students: data.students || [],
+      });
+    } catch {
+      alert('JSON yedek dosyası oluşturulamadı.');
+    } finally {
+      setJsonExportLoading(false);
+    }
+  };
+
+  const handleSaveBackupEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = backupEmail.trim();
+    if (!trimmed || !trimmed.includes('@')) {
+      setBackupEmailMsg({ type: 'error', text: 'Lütfen geçerli bir e-posta adresi girin.' });
+      return;
+    }
+
+    setSavingBackupEmail(true);
+    setBackupEmailMsg(null);
+    try {
+      const { data, error: rpcError } = await sb.rpc('admin_set_backup_email', {
+        p_admin_id: session.id,
+        p_email: trimmed,
+      });
+
+      if (rpcError || !data || !data.success) {
+        throw new Error('E-posta kaydedilemedi.');
+      }
+
+      localStorage.setItem('lgs_backup_email', trimmed);
+      setBackupEmailMsg({
+        type: 'success',
+        text: `Haftalık yedeklerin gönderileceği e-posta adresi "${trimmed}" olarak kaydedildi!`,
+      });
+    } catch {
+      setBackupEmailMsg({ type: 'error', text: 'E-posta kaydedilirken bir hata oluştu.' });
+    } finally {
+      setSavingBackupEmail(false);
+    }
+  };
+
+  const handleOpenEmailModal = async () => {
+    try {
+      const { data, error: rpcError } = await sb.rpc('admin_get_all_students_data', {
+        p_admin_id: session.id,
+      });
+      if (!rpcError && data && data.students) {
+        setAllStudentsData(data.students);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setIsBackupModalOpen(true);
+  };
+
   return (
     <div className="animate-fadeIn space-y-4">
       <Header
@@ -224,19 +340,133 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         session={session}
       />
 
-      <button
-        type="button"
-        onClick={handleExportAll}
-        disabled={exportLoading}
-        className="w-full bg-[#34C759] hover:bg-[#30B753] active:bg-[#289945] text-white font-semibold py-3 px-4 rounded-xl shadow-sm disabled:opacity-50 transition-all text-sm flex items-center justify-center gap-2 ios-press"
-      >
-        <Download className="w-4 h-4" />
-        <span>
-          {exportLoading
-            ? 'Hazırlanıyor…'
-            : "Tüm Öğrencileri (Bütün Öğretmenler) Excel'e Aktar"}
-        </span>
-      </button>
+      {/* 1. Bölüm: Yedekleme ve Dışa Aktarma Eylemleri */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+        <button
+          type="button"
+          onClick={handleExportWeeklyAll}
+          disabled={weeklyExportLoading}
+          className="ios-press flex items-center justify-center gap-2 px-3 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-105 active:scale-[0.98] text-white font-semibold rounded-2xl shadow-sm shadow-blue-500/20 text-xs transition-all disabled:opacity-50"
+        >
+          <Calendar className="w-4 h-4" />
+          <span>{weeklyExportLoading ? 'Hazırlanıyor…' : 'Bu Haftanın Yedeği (Excel)'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleExportAll}
+          disabled={exportLoading}
+          className="ios-press flex items-center justify-center gap-2 px-3 py-3 bg-white hover:bg-cream text-ink border border-black/[0.08] font-semibold rounded-2xl shadow-xs text-xs transition-all disabled:opacity-50"
+        >
+          <Download className="w-4 h-4 text-emerald-600" />
+          <span>{exportLoading ? 'Hazırlanıyor…' : 'Tüm Veriler (Excel)'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleExportJsonAll}
+          disabled={jsonExportLoading}
+          className="ios-press flex items-center justify-center gap-2 px-3 py-3 bg-white hover:bg-cream text-ink border border-black/[0.08] font-semibold rounded-2xl shadow-xs text-xs transition-all disabled:opacity-50"
+        >
+          <FileJson className="w-4 h-4 text-purple-600" />
+          <span>{jsonExportLoading ? 'Hazırlanıyor…' : 'Tam JSON Yedeği'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleOpenEmailModal}
+          className="ios-press flex items-center justify-center gap-2 px-3 py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:brightness-105 active:scale-[0.98] text-white font-semibold rounded-2xl shadow-sm shadow-orange-500/20 text-xs transition-all"
+        >
+          <Mail className="w-4 h-4" />
+          <span>Yedeği E-Postaya Gönder</span>
+        </button>
+      </div>
+
+      {/* 2. Bölüm: Otomatik Haftalık Yedekleme & E-Posta Yönetimi Kartı */}
+      <div className="notebook-card p-5 sm:p-6 space-y-3.5">
+        <div className="flex items-center gap-2.5">
+          <span className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center text-base">
+            📬
+          </span>
+          <div>
+            <h3 className="text-base sm:text-lg font-bold text-ink tracking-tight">
+              Haftalık Otomatik Yedek & E-Posta Yönetimi
+            </h3>
+            <p className="text-xs text-muted">
+              Yedeklerin her hafta sonu otomatik olarak gönderileceği e-posta adresini buradan belirleyin.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSaveBackupEmail} className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-[#8E8E93] uppercase tracking-wide mb-1.5">
+              Haftalık Yedeklerin Gönderileceği E-Posta Adresi
+            </label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Mail className="w-4 h-4 text-muted absolute left-3.5 top-3" />
+                <input
+                  type="email"
+                  value={backupEmail}
+                  onChange={(e) => setBackupEmail(e.target.value)}
+                  required
+                  placeholder="ornek@okul.com"
+                  className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-black/[0.08] bg-[#F2F2F7] text-ink focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-xs sm:text-sm"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingBackupEmail}
+                className="ios-press inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold rounded-xl text-xs shadow-sm disabled:opacity-50 transition-all flex-shrink-0"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{savingBackupEmail ? 'Kaydediliyor…' : 'E-Posta Adresini Kaydet'}</span>
+              </button>
+            </div>
+          </div>
+
+          {backupEmailMsg && (
+            <div
+              className={`p-3 rounded-xl border text-xs flex items-start gap-2 animate-fadeIn ${
+                backupEmailMsg.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                  : 'bg-red-50 text-red-900 border-red-200'
+              }`}
+            >
+              {backupEmailMsg.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+              )}
+              <span>{backupEmailMsg.text}</span>
+            </div>
+          )}
+
+          <div className="text-[11px] text-muted bg-[#F2F2F7] p-3 rounded-xl border border-black/[0.04] space-y-1">
+            <p className="font-semibold text-ink">💡 Otomatik Yedek Bilgilendirmesi:</p>
+            <p>
+              • Burada kaydettiğiniz e-posta adresi güvenli bir şekilde veritabanında saklanır.
+            </p>
+            <p>
+              • GitHub Actions haftalık iş akışı her Pazar gecesi bu adrese Excel raporunu otomatik gönderir.
+            </p>
+            <p>
+              • Öğretmenler de kendi panellerinde bu adresi görerek tek tıkla doğrudan yedek iletebilir.
+            </p>
+          </div>
+        </form>
+      </div>
+
+      <BackupEmailModal
+        isOpen={isBackupModalOpen}
+        onClose={() => setIsBackupModalOpen(false)}
+        students={allStudentsData}
+        teacherName="Tüm Okul (Yönetici)"
+        isAdmin={true}
+        adminId={session.id}
+      />
 
       {/* Yeni Öğretmen Ekle Kartı */}
       <div className="notebook-card p-5 sm:p-6">

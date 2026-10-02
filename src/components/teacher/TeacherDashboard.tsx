@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Download, RefreshCw, KeyRound, AlertCircle, Trash2, Calendar } from 'lucide-react';
+import { UserPlus, Download, RefreshCw, KeyRound, AlertCircle, Trash2, Calendar, Mail } from 'lucide-react';
 import { sb } from '../../lib/supabase';
 import { Session, Student } from '../../types';
 import { Header } from '../common/Header';
 import { StudentDetailView } from './StudentDetailView';
 import { generatePin, todayStr, fmtDateTime, weekRange, inRange, entryTotal } from '../../lib/utils';
-import { exportTeacherStudents } from '../../lib/excel';
+import { exportTeacherStudents, exportWeeklyTeacherBackup } from '../../lib/excel';
 import { createSampleStudent } from '../../lib/demoData';
+import { BackupEmailModal } from '../common/BackupEmailModal';
 
 interface TeacherDashboardProps {
   session: Session;
@@ -20,6 +21,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ session, onL
 
   // Selected student for detail view
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+
+  // Backup modal and loading state
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [weeklyExportLoading, setWeeklyExportLoading] = useState(false);
 
   // Add student form
   const [name, setName] = useState('');
@@ -159,6 +164,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ session, onL
   const today = todayStr();
   const missingToday = students.filter((s) => s.last_entry_date !== today);
 
+  const handleExportWeekly = async () => {
+    setWeeklyExportLoading(true);
+    try {
+      await exportWeeklyTeacherBackup(session.name, students, 0);
+    } catch {
+      alert('Haftalık yedek dosyası oluşturulamadı.');
+    } finally {
+      setWeeklyExportLoading(false);
+    }
+  };
+
   return (
     <div className="animate-fadeIn space-y-4">
       <Header
@@ -168,15 +184,45 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ session, onL
         session={session}
       />
 
-      <button
-        type="button"
-        onClick={() => exportTeacherStudents(session.name, students)}
-        disabled={students.length === 0}
-        className="w-full bg-[#34C759] hover:bg-[#30B753] active:bg-[#289945] text-white font-semibold py-3 px-4 rounded-xl shadow-sm disabled:opacity-50 transition-all text-sm flex items-center justify-center gap-2 ios-press"
-      >
-        <Download className="w-4 h-4" />
-        <span>Tüm Öğrencileri Excel'e Aktar</span>
-      </button>
+      {/* Yedekleme & Raporlama Merkezi */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <button
+          type="button"
+          onClick={handleExportWeekly}
+          disabled={students.length === 0 || weeklyExportLoading}
+          className="ios-press flex items-center justify-center gap-2 px-3.5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-105 active:scale-[0.98] text-white font-semibold rounded-2xl shadow-sm shadow-blue-500/20 text-xs sm:text-sm transition-all disabled:opacity-50"
+        >
+          <Calendar className="w-4 h-4" />
+          <span>{weeklyExportLoading ? 'Hazırlanıyor…' : 'Bu Haftanın Yedeğini İndir'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => exportTeacherStudents(session.name, students)}
+          disabled={students.length === 0}
+          className="ios-press flex items-center justify-center gap-2 px-3.5 py-3 bg-white hover:bg-cream text-ink border border-black/[0.08] font-semibold rounded-2xl shadow-xs text-xs sm:text-sm transition-all disabled:opacity-50"
+        >
+          <Download className="w-4 h-4 text-[#8E8E93]" />
+          <span>Tüm Öğrencileri Excel'e Aktar</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsBackupModalOpen(true)}
+          disabled={students.length === 0}
+          className="ios-press flex items-center justify-center gap-2 px-3.5 py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:brightness-105 active:scale-[0.98] text-white font-semibold rounded-2xl shadow-sm shadow-orange-500/20 text-xs sm:text-sm transition-all disabled:opacity-50"
+        >
+          <Mail className="w-4 h-4" />
+          <span>Yedeği E-Postaya Gönder</span>
+        </button>
+      </div>
+
+      <BackupEmailModal
+        isOpen={isBackupModalOpen}
+        onClose={() => setIsBackupModalOpen(false)}
+        students={students}
+        teacherName={session.name}
+      />
 
       {/* Missing today banner */}
       {missingToday.length > 0 && (

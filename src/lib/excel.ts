@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { Student, StudentEntry } from '../types';
 import { SUBJECTS, fmtDate, fmtDateTime, todayStr, entryTotal, weekRange, inRange, sumEntries } from './utils';
-import { WeekSummary, MonthSummary } from './calendarUtils';
+import { WeekSummary, MonthSummary, toISODateStr } from './calendarUtils';
 
 // ExcelJS Dosya İndirme Yardımcı Fonksiyonu
 async function saveWorkbook(wb: ExcelJS.Workbook, filename: string) {
@@ -496,5 +496,142 @@ export async function exportWeeklyCalendarExcel(
 
   const filename = `${studentName.replace(/\s+/g, '-')}-soru-takvimi-${todayStr()}.xlsx`;
   await saveWorkbook(wb, filename);
+}
+
+// ExcelJS: Bu Haftanın Özel Yedeğini İndir (Öğretmen / Admin)
+export async function exportWeeklyTeacherBackup(
+  _title: string,
+  students: Student[],
+  weekOffset = 0
+) {
+  const wb = new ExcelJS.Workbook();
+  const [wStart, wEnd] = weekRange(weekOffset);
+  const wMonday = wStart;
+  const wStartStr = toISODateStr(wStart);
+  const wEndStr = toISODateStr(wEnd);
+
+  // Günlerin tarihleri ve adları (Pzt -> Paz)
+  const weekDays: { dateStr: string; label: string }[] = [];
+  const dayLabels = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+  for (let i = 0; i < 7; i++) {
+    const cur = new Date(wMonday.getFullYear(), wMonday.getMonth(), wMonday.getDate() + i, 12, 0, 0);
+    weekDays.push({
+      dateStr: toISODateStr(cur),
+      label: `${cur.getDate()} ${dayLabels[i]}`,
+    });
+  }
+
+  // 1. Sayfa: Bu Hafta Öğrenci Özeti
+  const wsOverview = wb.addWorksheet('Haftalık Özet');
+  wsOverview.columns = [
+    { header: 'Öğrenci', key: 'student', width: 22 },
+    { header: 'Günlük Hedef', key: 'target', width: 14 },
+    ...weekDays.map((d) => ({ header: d.label, key: d.dateStr, width: 12 })),
+    { header: 'Hafta Toplamı', key: 'total', width: 16 },
+    { header: 'Aktif Gün', key: 'active_days', width: 14 },
+    { header: 'Hedef Durumu', key: 'status', width: 18 },
+  ];
+  wsOverview.getRow(1).font = { bold: true };
+
+  let overallWeekTotal = 0;
+
+  students.forEach((s) => {
+    const rowObj: any = {
+      student: s.name,
+      target: s.daily_target != null ? s.daily_target : '-',
+    };
+
+    let studentWeekTotal = 0;
+    let activeDays = 0;
+
+    weekDays.forEach((d) => {
+      const entry = (s.entries || []).find((e) => e.date === d.dateStr);
+      const count = entry ? entryTotal(entry) : 0;
+      rowObj[d.dateStr] = count > 0 ? count : '-';
+      if (count > 0) {
+        studentWeekTotal += count;
+        activeDays++;
+      }
+    });
+
+    overallWeekTotal += studentWeekTotal;
+    rowObj.total = studentWeekTotal;
+    rowObj.active_days = `${activeDays} / 7`;
+
+    if (s.daily_target && s.daily_target > 0) {
+      const weeklyTarget = s.daily_target * 7;
+      rowObj.status = studentWeekTotal >= weeklyTarget ? 'Hedefe Ulaşıldı ✅' : `Hedefe %${Math.round((studentWeekTotal / weeklyTarget) * 100)}`;
+    } else {
+      rowObj.status = studentWeekTotal > 0 ? 'Aktif' : 'Giriş Yok';
+    }
+
+    wsOverview.addRow(rowObj);
+  });
+
+  wsOverview.addRow([]);
+  const sumRow = wsOverview.addRow({
+    student: 'GENEL TOPLAM',
+    total: overallWeekTotal,
+  });
+  sumRow.font = { bold: true, size: 11 };
+
+  // 2. Sayfa: Bu Hafta Ders Dağılımı
+  const wsSubjects = wb.addWorksheet('Haftalık Dersler');
+  wsSubjects.columns = [
+    { header: 'Öğrenci', key: 'student', width: 22 },
+    ...SUBJECTS.map((subj) => ({ header: subj, key: subj, width: 15 })),
+    { header: 'Toplam', key: 'total', width: 15 },
+  ];
+  wsSubjects.getRow(1).font = { bold: true };
+
+  students.forEach((s) => {
+    const rowObj: any = { student: s.name };
+    let studentTot = 0;
+    SUBJECTS.forEach((subj) => {
+      let subjCount = 0;
+      (s.entries || []).forEach((e) => {
+        if (inRange(e.date, wStart, wEnd)) {
+          subjCount += Number(e.subjects?.[subj]) || 0;
+        }
+      });
+      rowObj[subj] = subjCount;
+      studentTot += subjCount;
+    });
+    rowObj.total = studentTot;
+    wsSubjects.addRow(rowObj);
+  });
+
+  // 3. Sayfa: Öğrenci Plan ve Rehberlik
+  const wsPlans = wb.addWorksheet('Haftalık Planlar');
+  wsPlans.columns = [
+    { header: 'Öğrenci', key: 'student', width: 24 },
+    { header: 'Haftaya Dair Plan ve Öneriler', key: 'plan', width: 36 },
+    { header: 'Rehberlik Görüş ve Notları', key: 'guidance', width: 36 },
+  ];
+  wsPlans.getRow(1).font = { bold: true };
+  students.forEach((s) => {
+    wsPlans.addRow({
+      student: s.name,
+      plan: s.weekly_plan || '-',
+      guidance: s.guidance_note || '-',
+    });
+  });
+
+  const filename = `haftalik-lgs-yedek-${wStartStr}-ila-${wEndStr}.xlsx`;
+  await saveWorkbook(wb, filename);
+}
+
+// JSON Veritabanı Yedeği İndir
+export function exportFullJsonBackup(_title: string, data: any) {
+  const jsonStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `lgs-tam-veritabani-yedek-${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 

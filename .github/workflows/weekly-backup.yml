@@ -1,0 +1,64 @@
+name: Otomatik Haftalık Yedekleme
+
+on:
+  schedule:
+    # Her Pazar gecesi saat 21:00 UTC (Türkiye saati ile 00:00 Pazar gecesi / Pazartesi başı)
+    - cron: '0 21 * * 0'
+  workflow_dispatch:
+    inputs:
+      target_email:
+        description: 'Yedeklerin gönderileceği özel e-posta (Boş bırakılırsa adminin kaydettiği e-posta kullanılır)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Haftalık Veri Yedeği Al ve Sakla
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodu Çek
+        uses: actions/checkout@v4
+
+      - name: Node.js Kurulumu
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Bağımlılıkları Yükle
+        run: npm ci
+
+      - name: Haftalık Excel ve JSON Yedeği Oluştur
+        id: create_backup
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://uogcawdqegzuiecrjesn.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Uf1npAPsugEXg594AFybQQ_K4gyZz1X' }}
+          TARGET_EMAIL: ${{ github.event.inputs.target_email }}
+        run: node scripts/backup-weekly.js
+
+      - name: Yedek Dosyalarını GitHub Actions'a Yükle (90 Gün Güvenli Saklama)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lgs-haftalik-yedekler
+          path: backups/
+          retention-days: 90
+
+      - name: E-Posta Gönderimi (SMTP Yapılandırılmışsa)
+        if: env.SMTP_SERVER != '' && steps.create_backup.outputs.backup_email != ''
+        uses: dawidd6/action-send-mail@v3
+        env:
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT || 465 }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: '[LGS Soru Takip] Haftalık Otomatik Veri Yedeği Raporu'
+          to: ${{ steps.create_backup.outputs.backup_email }}
+          from: ${{ secrets.SMTP_FROM || 'LGS Soru Takip <noreply@lgstakip.com>' }}
+          body: file://backups/summary.md
+          attachments: ${{ steps.create_backup.outputs.excel_file }},${{ steps.create_backup.outputs.json_file }}
