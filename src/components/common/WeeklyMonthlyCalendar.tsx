@@ -64,6 +64,17 @@ export const WeeklyMonthlyCalendar: React.FC<WeeklyMonthlyCalendarProps> = ({
   // En son hafta (Bu Hafta)
   const latestWeek = calendarData.weeks[0] || null;
 
+  // Bugün çözülen soru sayısı
+  const todayDateStr = useMemo(() => toISODateStr(new Date()), []);
+  const todayTotal = useMemo(() => {
+    return entries
+      .filter((e) => (e.date || '').slice(0, 10) === todayDateStr)
+      .reduce((sum, e) => {
+        const subTotal = Object.values(e.subjects || {}).reduce((a, b) => a + (Number(b) || 0), 0);
+        return sum + subTotal;
+      }, 0);
+  }, [entries, todayDateStr]);
+
   // Excel Dışa Aktarma
   const handleExport = async () => {
     setExporting(true);
@@ -194,22 +205,37 @@ export const WeeklyMonthlyCalendar: React.FC<WeeklyMonthlyCalendarProps> = ({
           </button>
         </div>
 
-        {/* 4 Canlı Özet Kutucuğu */}
+        {/* 4 Canlı Özet Kutucuğu: GÜN, HAFTA, AY, TÜM ZAMANLAR */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-          {/* Kutucuk 1: Toplam Soru */}
-          <div className="bg-gradient-to-br from-indigo-500 via-blue-600 to-indigo-700 text-white rounded-2xl p-3.5 text-center flex flex-col justify-between shadow-md shadow-indigo-500/20 hover:scale-[1.02] transition-all">
-            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-indigo-100 flex items-center justify-center gap-1">
-              <span>🌟</span> Tüm Zamanlar
+          {/* 1. GÜN: Bugün */}
+          <div className="bg-gradient-to-br from-[#007AFF] via-[#3B82F6] to-[#4F46E5] text-white rounded-2xl p-3.5 text-center flex flex-col justify-between shadow-md shadow-blue-500/20 hover:scale-[1.02] transition-all">
+            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-blue-100 flex items-center justify-center gap-1">
+              <span>☀️</span> Bugün
             </div>
             <div className="font-mono text-xl sm:text-2xl font-black tracking-tight my-1 drop-shadow-xs">
-              {calendarData.grandTotal.toLocaleString('tr-TR')}
+              {todayTotal.toLocaleString('tr-TR')}
             </div>
             <div className="text-[10px] font-bold bg-white/20 text-white py-0.5 px-2.5 rounded-full mx-auto backdrop-blur-xs">
-              Toplam Soru
+              {dailyTarget && dailyTarget > 0
+                ? (todayTotal >= dailyTarget ? '🎯 Hedef Tamam' : `Hedef: ${dailyTarget}`)
+                : 'Bugünkü Soru'}
             </div>
           </div>
 
-          {/* Kutucuk 2: Bu Ayın Toplamı */}
+          {/* 2. HAFTA: Bu Hafta */}
+          <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 text-white rounded-2xl p-3.5 text-center flex flex-col justify-between shadow-md shadow-orange-500/20 hover:scale-[1.02] transition-all">
+            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-100 flex items-center justify-center gap-1">
+              <span>⚡</span> {latestWeek ? latestWeek.shortLabel : 'Bu Hafta'}
+            </div>
+            <div className="font-mono text-xl sm:text-2xl font-black tracking-tight my-1 drop-shadow-xs">
+              {(latestWeek ? latestWeek.totalQuestions : 0).toLocaleString('tr-TR')}
+            </div>
+            <div className="text-[10px] font-bold bg-white/20 text-white py-0.5 px-2.5 rounded-full mx-auto backdrop-blur-xs">
+              {latestWeek ? `${latestWeek.activeDaysCount} gün aktif` : 'Hafta Toplamı'}
+            </div>
+          </div>
+
+          {/* 3. AY: Bu Ay */}
           <div className="bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 text-white rounded-2xl p-3.5 text-center flex flex-col justify-between shadow-md shadow-emerald-500/20 hover:scale-[1.02] transition-all">
             <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-100 flex items-center justify-center gap-1">
               <span>📅</span> {selectedMonthSummary ? selectedMonthSummary.monthName : (calendarData.months[0]?.monthName || 'Bu Ay')}
@@ -225,33 +251,16 @@ export const WeeklyMonthlyCalendar: React.FC<WeeklyMonthlyCalendarProps> = ({
             </div>
           </div>
 
-          {/* Kutucuk 3: Bu Hafta */}
-          <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 text-white rounded-2xl p-3.5 text-center flex flex-col justify-between shadow-md shadow-orange-500/20 hover:scale-[1.02] transition-all">
-            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-100 flex items-center justify-center gap-1">
-              <span>⚡</span> {latestWeek ? latestWeek.shortLabel : 'Bu Hafta'}
-            </div>
-            <div className="font-mono text-xl sm:text-2xl font-black tracking-tight my-1 drop-shadow-xs">
-              {(latestWeek ? latestWeek.totalQuestions : 0).toLocaleString('tr-TR')}
-            </div>
-            <div className="text-[10px] font-bold bg-white/20 text-white py-0.5 px-2.5 rounded-full mx-auto backdrop-blur-xs">
-              {latestWeek ? `${latestWeek.activeDaysCount} gün aktif` : 'Hafta Toplamı'}
-            </div>
-          </div>
-
-          {/* Kutucuk 4: Haftalık Ortalama */}
-          <div className="bg-gradient-to-br from-purple-500 via-violet-600 to-purple-700 text-white rounded-2xl p-3.5 text-center flex flex-col justify-between shadow-md shadow-purple-500/20 hover:scale-[1.02] transition-all">
+          {/* 4. TÜM ZAMANLAR */}
+          <div className="bg-gradient-to-br from-purple-500 via-indigo-600 to-purple-700 text-white rounded-2xl p-3.5 text-center flex flex-col justify-between shadow-md shadow-purple-500/20 hover:scale-[1.02] transition-all">
             <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-purple-100 flex items-center justify-center gap-1">
-              <span>🎯</span> Haftalık Ortalama
+              <span>🌟</span> Tüm Zamanlar
             </div>
             <div className="font-mono text-xl sm:text-2xl font-black tracking-tight my-1 drop-shadow-xs">
-              {(() => {
-                const activeWeeks = calendarData.weeks.filter((w) => w.totalQuestions > 0);
-                if (activeWeeks.length === 0) return 0;
-                return Math.round(calendarData.grandTotal / activeWeeks.length);
-              })().toLocaleString('tr-TR')}
+              {calendarData.grandTotal.toLocaleString('tr-TR')}
             </div>
             <div className="text-[10px] font-bold bg-white/20 text-white py-0.5 px-2.5 rounded-full mx-auto backdrop-blur-xs">
-              Soru / Hafta
+              Toplam Soru
             </div>
           </div>
         </div>

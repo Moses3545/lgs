@@ -85,30 +85,36 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
   const [wStart, wEnd] = weekRange(0);
   const currentMonthPrefix = todayStr().slice(0, 7); // 'YYYY-MM'
 
-  // Subject table calculations
+  const today = todayStr();
+  const todayBySubject: Record<string, number> = {};
   const weekBySubject: Record<string, number> = {};
   const monthBySubject: Record<string, number> = {};
   const totalBySubject: Record<string, number> = {};
   SUBJECTS.forEach((s) => {
+    todayBySubject[s] = 0;
     weekBySubject[s] = 0;
     monthBySubject[s] = 0;
     totalBySubject[s] = 0;
   });
   entries.forEach((e) => {
+    const isToday = e.date === today;
     const inWeek = inRange(e.date, wStart, wEnd);
     const inMonth = e.date.startsWith(currentMonthPrefix);
     Object.entries(e.subjects || {}).forEach(([subj, count]) => {
       const c = Number(count) || 0;
       if (!(subj in totalBySubject)) {
+        todayBySubject[subj] = 0;
         totalBySubject[subj] = 0;
         weekBySubject[subj] = 0;
         monthBySubject[subj] = 0;
       }
       totalBySubject[subj] += c;
+      if (isToday) todayBySubject[subj] += c;
       if (inWeek) weekBySubject[subj] += c;
       if (inMonth) monthBySubject[subj] += c;
     });
   });
+  const todayTotal = Object.values(todayBySubject).reduce((a, b) => a + b, 0);
   const weekTotal = Object.values(weekBySubject).reduce((a, b) => a + b, 0);
   const monthTotal = Object.values(monthBySubject).reduce((a, b) => a + b, 0);
   const grandTotal = Object.values(totalBySubject).reduce((a, b) => a + b, 0);
@@ -440,6 +446,7 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             <thead>
               <tr className="border-b border-black/[0.08] text-[#8E8E93] uppercase font-semibold text-[10px] tracking-wider">
                 <th className="py-2.5 px-2">Ders</th>
+                <th className="py-2.5 px-2 text-right">Bugün</th>
                 <th className="py-2.5 px-2 text-right">Bu Hafta</th>
                 <th className="py-2.5 px-2 text-right">Bu Ay</th>
                 <th className="py-2.5 px-2 text-right">Toplam</th>
@@ -455,6 +462,9 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                 return (
                   <tr key={subj} className="hover:bg-[#F2F2F7]/60 transition-colors">
                     <td className="py-2.5 px-2 font-semibold text-ink">{subj}</td>
+                    <td className="py-2.5 px-2 text-right font-semibold text-[#007AFF]">
+                      {todayBySubject[subj] || 0}
+                    </td>
                     <td className="py-2.5 px-2 text-right font-medium text-[#8E8E93]">
                       {weekBySubject[subj] || 0}
                     </td>
@@ -474,6 +484,9 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             <tfoot>
               <tr className="border-t-2 border-black/[0.08] font-bold bg-[#F2F2F7]/50 text-ink">
                 <td className="py-3 px-2 font-bold">Toplam</td>
+                <td className="py-3 px-2 text-right text-[#007AFF] font-bold">
+                  {todayTotal.toLocaleString('tr-TR')}
+                </td>
                 <td className="py-3 px-2 text-right text-[#8E8E93]">
                   {weekTotal.toLocaleString('tr-TR')}
                 </td>
