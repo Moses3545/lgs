@@ -7,9 +7,19 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Supabase URL & Keys
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://uogcawdqegzuiecrjesn.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Uf1npAPsugEXg594AFybQQ_K4gyZz1X';
+// Supabase URL & Keys (GitHub Actions boolean dönüşümlerine ve boş değerlere karşı korumalı)
+const DEFAULT_SUPABASE_URL = 'https://uogcawdqegzuiecrjesn.supabase.co';
+const DEFAULT_ANON_KEY = 'sb_publishable_Uf1npAPsugEXg594AFybQQ_K4gyZz1X';
+
+const rawUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const SUPABASE_URL = (typeof rawUrl === 'string' && rawUrl.startsWith('http'))
+  ? rawUrl.trim()
+  : DEFAULT_SUPABASE_URL;
+
+const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_KEY = (typeof rawKey === 'string' && rawKey.length > 20 && rawKey !== 'true')
+  ? rawKey.trim()
+  : DEFAULT_ANON_KEY;
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -35,12 +45,14 @@ async function runBackup() {
   console.log('🚀 LGS Haftalık Otomatik Yedekleme Başlatılıyor...');
 
   // 1. Admin tarafından belirlenen e-posta adresini al
-  let backupEmail = process.env.TARGET_EMAIL || '';
+  let backupEmail = (process.env.TARGET_EMAIL && process.env.TARGET_EMAIL.trim()) || '';
   try {
     const { data: emailData, error: emailError } = await sb.rpc('get_backup_email');
     if (!emailError && emailData && emailData.email) {
-      backupEmail = emailData.email;
-      console.log(`📬 Yönetici tarafından tanımlanan yedek e-postası: ${backupEmail}`);
+      if (!backupEmail) {
+        backupEmail = emailData.email.trim();
+      }
+      console.log(`📬 Yönetici tarafından tanımlanan yedek e-postası: ${emailData.email}`);
     }
   } catch (err) {
     console.warn('Yönetici e-postası veritabanından çekilemedi:', err.message);
@@ -203,6 +215,13 @@ async function runBackup() {
   console.log(`💾 JSON veritabanı yedeği kaydedildi: ${jsonFilePath}`);
 
   // 5. GitHub Actions Çıktıları
+  const hasSmtp = Boolean(process.env.SMTP_SERVER && process.env.SMTP_SERVER.trim() && process.env.SMTP_SERVER !== 'true');
+  const canSendMail = Boolean(hasSmtp && backupEmail);
+  const rawPort = process.env.SMTP_PORT ? String(process.env.SMTP_PORT).trim() : '';
+  const smtpPort = (rawPort && rawPort !== 'true') ? rawPort : '465';
+  const rawFrom = process.env.SMTP_FROM ? String(process.env.SMTP_FROM).trim() : '';
+  const smtpFrom = (rawFrom && rawFrom !== 'true') ? rawFrom : 'LGS Soru Takip <noreply@lgstakip.com>';
+
   const summaryMd =
     `# 📋 LGS Soru Takip - Haftalık Otomatik Yedek Raporu\n\n` +
     `- **Dönem:** ${mondayStr} – ${sundayStr}\n` +
@@ -221,6 +240,10 @@ async function runBackup() {
     fs.appendFileSync(process.env.GITHUB_OUTPUT, `excel_file=${excelFilePath}\n`);
     fs.appendFileSync(process.env.GITHUB_OUTPUT, `json_file=${jsonFilePath}\n`);
     fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_email=${backupEmail ? 'true' : 'false'}\n`);
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_smtp=${hasSmtp ? 'true' : 'false'}\n`);
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `can_send_mail=${canSendMail ? 'true' : 'false'}\n`);
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `smtp_port=${smtpPort}\n`);
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `smtp_from=${smtpFrom}\n`);
   }
 
   console.log('✨ Haftalık yedekleme işlemi başarıyla tamamlandı!');

@@ -35,9 +35,13 @@ jobs:
       - name: Haftalık Excel ve JSON Yedeği Oluştur
         id: create_backup
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://uogcawdqegzuiecrjesn.supabase.co' }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Uf1npAPsugEXg594AFybQQ_K4gyZz1X' }}
-          TARGET_EMAIL: ${{ github.event.inputs.target_email }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TARGET_EMAIL: ${{ inputs.target_email }}
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
         run: node scripts/backup-weekly.js
 
       - name: Yedek Dosyalarını GitHub Actions'a Yükle (90 Gün Güvenli Saklama)
@@ -46,19 +50,19 @@ jobs:
           name: lgs-haftalik-yedekler
           path: backups/
           retention-days: 90
+          overwrite: true
 
       - name: E-Posta Gönderimi (SMTP Yapılandırılmışsa)
-        if: env.SMTP_SERVER != '' && steps.create_backup.outputs.backup_email != ''
+        if: steps.create_backup.outputs.can_send_mail == 'true'
         uses: dawidd6/action-send-mail@v3
-        env:
-          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
         with:
           server_address: ${{ secrets.SMTP_SERVER }}
-          server_port: ${{ secrets.SMTP_PORT || 465 }}
+          server_port: ${{ steps.create_backup.outputs.smtp_port }}
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: '[LGS Soru Takip] Haftalık Otomatik Veri Yedeği Raporu'
           to: ${{ steps.create_backup.outputs.backup_email }}
-          from: ${{ secrets.SMTP_FROM || 'LGS Soru Takip <noreply@lgstakip.com>' }}
+          from: ${{ steps.create_backup.outputs.smtp_from }}
           body: file://backups/summary.md
           attachments: ${{ steps.create_backup.outputs.excel_file }},${{ steps.create_backup.outputs.json_file }}
+          convert_markdown: true
