@@ -785,18 +785,25 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ session, onL
 
       {/* Rehberlik Görüş ve Öneriler */}
       <div className="notebook-card p-5 sm:p-6 border border-white shadow-md">
-        <div className="flex items-center gap-2 mb-2.5">
-          <span className="w-7 h-7 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold">
-            💡
-          </span>
-          <h3 className="text-lg font-black text-ink tracking-tight">
-            Rehberlik Görüş ve Öneriler
-          </h3>
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center gap-2">
+            <span className="w-7 h-7 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold">
+              💡
+            </span>
+            <h3 className="text-lg font-black text-ink tracking-tight">
+              Rehberlik Görüş ve Öneriler
+            </h3>
+          </div>
+          {student.guidance_note?.trim() && (
+            <span className="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">
+              Yeni Değerlendirme
+            </span>
+          )}
         </div>
         <p className="text-xs text-purple-950 bg-gradient-to-r from-purple-50/90 to-pink-50/90 border border-purple-200/80 p-4 rounded-2xl leading-relaxed whitespace-pre-wrap font-medium shadow-xs">
           {student.guidance_note?.trim()
             ? student.guidance_note
-            : 'Öğretmenin henüz bir rehberlik notu yazmamış.'}
+            : 'Rehberlik uzmanınız veya öğretmeniniz henüz bir rehberlik notu paylaşmadı.'}
         </p>
       </div>
     </div>

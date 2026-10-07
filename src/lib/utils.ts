@@ -14,6 +14,7 @@ export type Subject = typeof SUBJECTS[number];
 
 export const LS_TEACHER = 'lgs_teacher_session';
 export const LS_STUDENT = 'lgs_student_session';
+export const LS_COUNSELOR = 'lgs_counselor_session';
 
 export function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '-';

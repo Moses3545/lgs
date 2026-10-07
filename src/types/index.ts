@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'teacher' | 'student';
+export type Role = 'admin' | 'teacher' | 'student' | 'counselor';
 
 export interface Session {
   role: Role;
@@ -14,6 +14,14 @@ export interface Teacher {
   username: string;
   password?: string;
   student_count?: number;
+  created_at?: string;
+}
+
+export interface Counselor {
+  id: string;
+  name: string;
+  username: string;
+  password?: string;
   created_at?: string;
 }
 
@@ -34,6 +42,7 @@ export interface Student {
   name: string;
   username: string;
   password?: string;
+  teacher_id?: string;
   teacher_name?: string;
   daily_target?: number | null;
   last_entry_date?: string | null;

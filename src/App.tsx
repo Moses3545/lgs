@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Session, Role } from './types';
 import { sb } from './lib/supabase';
-import { LS_TEACHER, LS_STUDENT } from './lib/utils';
+import { LS_TEACHER, LS_STUDENT, LS_COUNSELOR } from './lib/utils';
 import { RoleSelection } from './components/auth/RoleSelection';
 import { AdminLogin } from './components/auth/AdminLogin';
 import { TeacherLogin } from './components/auth/TeacherLogin';
 import { StudentLogin } from './components/auth/StudentLogin';
+import { CounselorLogin } from './components/auth/CounselorLogin';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { TeacherActivityView } from './components/admin/TeacherActivityView';
 import { TeacherDashboard } from './components/teacher/TeacherDashboard';
 import { StudentDashboard } from './components/student/StudentDashboard';
+import { CounselorDashboard } from './components/counselor/CounselorDashboard';
 
-type AuthScreen = 'role' | 'admin-login' | 'teacher-login' | 'student-login';
+type AuthScreen = 'role' | 'admin-login' | 'teacher-login' | 'student-login' | 'counselor-login';
 
 export const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -24,7 +26,35 @@ export const App: React.FC = () => {
   // Automatic login check from localStorage
   useEffect(() => {
     const autoLogin = async () => {
-      // 1. Try Teacher remember
+      // 1. Try Counselor remember
+      const savedCounselor = localStorage.getItem(LS_COUNSELOR);
+      if (savedCounselor) {
+        try {
+          const parsed = JSON.parse(savedCounselor);
+          const { id, username, sessionToken } = parsed;
+
+          if (sessionToken) {
+            const { data } = await sb.rpc('counselor_get_data', {
+              p_counselor_id: id,
+              p_session_token: sessionToken,
+            });
+            if (data && !data.error && data.counselor) {
+              setSession({
+                role: 'counselor',
+                id,
+                sessionToken,
+                name: data.counselor.name || username,
+              });
+              setInitialLoading(false);
+              return;
+            }
+          }
+        } catch {
+          localStorage.removeItem(LS_COUNSELOR);
+        }
+      }
+
+      // 2. Try Teacher remember
       const savedTeacher = localStorage.getItem(LS_TEACHER);
       if (savedTeacher) {
         try {
@@ -77,7 +107,7 @@ export const App: React.FC = () => {
         }
       }
 
-      // 2. Try Student remember
+      // 3. Try Student remember
       const savedStudent = localStorage.getItem(LS_STUDENT);
       if (savedStudent) {
         try {
@@ -133,6 +163,8 @@ export const App: React.FC = () => {
       localStorage.removeItem(LS_STUDENT);
     } else if (session?.role === 'teacher') {
       localStorage.removeItem(LS_TEACHER);
+    } else if (session?.role === 'counselor') {
+      localStorage.removeItem(LS_COUNSELOR);
     }
     try {
       await sb.auth.signOut();
@@ -156,7 +188,7 @@ export const App: React.FC = () => {
 
   const containerClass = !session
     ? 'max-w-md mx-auto px-4 py-8 sm:py-10 min-h-screen'
-    : session.role === 'teacher' || session.role === 'admin'
+    : session.role === 'teacher' || session.role === 'admin' || session.role === 'counselor'
     ? 'max-w-md sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-4 py-6 sm:py-10 min-h-screen transition-all'
     : 'max-w-md sm:max-w-xl md:max-w-2xl mx-auto px-4 py-6 sm:py-10 min-h-screen transition-all';
 
@@ -170,6 +202,7 @@ export const App: React.FC = () => {
                 if (role === 'admin') setAuthScreen('admin-login');
                 else if (role === 'teacher') setAuthScreen('teacher-login');
                 else if (role === 'student') setAuthScreen('student-login');
+                else if (role === 'counselor') setAuthScreen('counselor-login');
               }}
             />
           )}
@@ -190,6 +223,13 @@ export const App: React.FC = () => {
 
           {authScreen === 'student-login' && (
             <StudentLogin
+              onSuccess={(sess) => setSession(sess)}
+              onBack={() => setAuthScreen('role')}
+            />
+          )}
+
+          {authScreen === 'counselor-login' && (
+            <CounselorLogin
               onSuccess={(sess) => setSession(sess)}
               onBack={() => setAuthScreen('role')}
             />
@@ -219,6 +259,10 @@ export const App: React.FC = () => {
 
       {session && session.role === 'student' && (
         <StudentDashboard session={session} onLogout={handleLogout} />
+      )}
+
+      {session && session.role === 'counselor' && (
+        <CounselorDashboard session={session} onLogout={handleLogout} />
       )}
     </main>
   );
