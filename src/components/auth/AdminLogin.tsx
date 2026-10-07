@@ -61,7 +61,11 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onBack }) => 
       }
 
       if (data && data.error) {
-        setError(data.error);
+        if (data.error.includes('15 dakika') || data.locked) {
+          setError('Kullanıcı adı veya parola hatalı.');
+        } else {
+          setError(data.error);
+        }
         return;
       }
 
@@ -76,7 +80,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onBack }) => 
         return;
       }
 
-      try { await sb.rpc('record_failed_attempt', { p_identifier: u }); } catch {}
       setError('Kullanıcı adı veya parola hatalı.');
     } catch {
       // Catch fallback for admin user
