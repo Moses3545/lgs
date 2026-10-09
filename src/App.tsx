@@ -25,6 +25,8 @@ export const App: React.FC = () => {
 
   // Automatic login check from localStorage
   useEffect(() => {
+    let isMounted = true;
+
     const autoLogin = async () => {
       // 1. Try Counselor remember
       const savedCounselor = localStorage.getItem(LS_COUNSELOR);
@@ -39,15 +41,21 @@ export const App: React.FC = () => {
               p_session_token: sessionToken,
             });
             if (data && !data.error && data.counselor) {
-              setSession({
-                role: 'counselor',
-                id,
-                sessionToken,
-                name: data.counselor.name || username,
-              });
-              setInitialLoading(false);
+              if (isMounted) {
+                setSession({
+                  role: 'counselor',
+                  id,
+                  sessionToken,
+                  name: data.counselor.name || username,
+                });
+                setInitialLoading(false);
+              }
               return;
+            } else {
+              localStorage.removeItem(LS_COUNSELOR);
             }
+          } else {
+            localStorage.removeItem(LS_COUNSELOR);
           }
         } catch {
           localStorage.removeItem(LS_COUNSELOR);
@@ -67,14 +75,18 @@ export const App: React.FC = () => {
               p_session_token: sessionToken,
             });
             if (data && !data.error && data.teacher) {
-              setSession({
-                role: 'teacher',
-                id,
-                sessionToken,
-                name: data.teacher.name || username,
-              });
-              setInitialLoading(false);
+              if (isMounted) {
+                setSession({
+                  role: 'teacher',
+                  id,
+                  sessionToken,
+                  name: data.teacher.name || username,
+                });
+                setInitialLoading(false);
+              }
               return;
+            } else {
+              localStorage.removeItem(LS_TEACHER);
             }
           } else if (username && secret) {
             // Legacy migration: authenticate with plaintext password once, upgrade to token
@@ -92,15 +104,21 @@ export const App: React.FC = () => {
                   name: data.name || username,
                 })
               );
-              setSession({
-                role: 'teacher',
-                id: data.id,
-                sessionToken: data.session_token,
-                name: data.name || username,
-              });
-              setInitialLoading(false);
+              if (isMounted) {
+                setSession({
+                  role: 'teacher',
+                  id: data.id,
+                  sessionToken: data.session_token,
+                  name: data.name || username,
+                });
+                setInitialLoading(false);
+              }
               return;
+            } else {
+              localStorage.removeItem(LS_TEACHER);
             }
+          } else {
+            localStorage.removeItem(LS_TEACHER);
           }
         } catch {
           localStorage.removeItem(LS_TEACHER);
@@ -119,15 +137,19 @@ export const App: React.FC = () => {
               p_student_id: id,
               p_session_token: sessionToken,
             });
-            if (data && !data.error) {
-              setSession({
-                role: 'student',
-                id,
-                sessionToken,
-                name: data.name,
-              });
-              setInitialLoading(false);
+            if (data && !data.error && data.id) {
+              if (isMounted) {
+                setSession({
+                  role: 'student',
+                  id,
+                  sessionToken,
+                  name: data.name,
+                });
+                setInitialLoading(false);
+              }
               return;
+            } else {
+              localStorage.removeItem(LS_STUDENT);
             }
           } else if (id && secret) {
             // Legacy fallback
@@ -135,26 +157,48 @@ export const App: React.FC = () => {
               p_student_id: id,
               p_password: secret,
             });
-            if (data && !data.error) {
-              setSession({
-                role: 'student',
-                id,
-                secret,
-                name: data.name,
-              });
-              setInitialLoading(false);
+            if (data && !data.error && data.id) {
+              if (isMounted) {
+                setSession({
+                  role: 'student',
+                  id,
+                  secret,
+                  name: data.name,
+                });
+                setInitialLoading(false);
+              }
               return;
+            } else {
+              localStorage.removeItem(LS_STUDENT);
             }
+          } else {
+            localStorage.removeItem(LS_STUDENT);
           }
         } catch {
           localStorage.removeItem(LS_STUDENT);
         }
       }
 
-      setInitialLoading(false);
+      if (isMounted) {
+        setInitialLoading(false);
+      }
     };
 
-    autoLogin();
+    // Safety timeout: never block on initialLoading for more than 4 seconds
+    const timeout = setTimeout(() => {
+      if (isMounted) {
+        setInitialLoading(false);
+      }
+    }, 4000);
+
+    autoLogin().finally(() => {
+      clearTimeout(timeout);
+    });
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeout);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -178,10 +222,21 @@ export const App: React.FC = () => {
 
   if (initialLoading) {
     return (
-      <main className="max-w-md mx-auto px-4 py-16 flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="font-mono text-xs uppercase tracking-widest text-muted animate-pulse">
+      <main className="max-w-md mx-auto px-4 py-16 flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+        <div className="font-mono text-xs uppercase tracking-widest text-muted">
           Oturum kontrol ediliyor…
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            try { localStorage.clear(); } catch {}
+            setInitialLoading(false);
+          }}
+          className="mt-6 text-xs text-blue-600 hover:underline font-semibold"
+        >
+          Beklemek istemiyor musunuz? Giriş ekranına geç
+        </button>
       </main>
     );
   }
