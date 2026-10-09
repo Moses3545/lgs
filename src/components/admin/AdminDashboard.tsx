@@ -239,11 +239,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteTeacher = async (teacher: Teacher) => {
-    if (
-      !window.confirm(
-        `${teacher.name} adlı öğretmeni silmek istediğine emin misin? Bu öğretmenin tüm öğrencileri ve verileri de silinecektir.`
-      )
-    ) {
+    if ((teacher.student_count || 0) > 0) {
+      alert(
+        `DİKKAT: ${teacher.name} öğretmenine bağlı ${teacher.student_count} öğrenci bulunmaktadır!\n\nÖğrencilerin ve soru kayıtlarının kazara silinmesini önlemek için doğrudan silme engellenmiştir.\nLütfen silmeden önce 'Öğretmen Aktivitesi' ekranından öğrencileri başka bir öğretmene aktarınız.`
+      );
+      return;
+    }
+
+    const confirmText = window.prompt(
+      `${teacher.name} öğretmenini silmek istediğinize emin misiniz?\nOnaylamak için kutuya büyük harflerle "SİL" yazınız:`
+    );
+    if (confirmText !== 'SİL') {
       return;
     }
 
@@ -254,7 +260,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
 
       if (rpcError || !data || data.error) {
-        alert('Öğretmen silinemedi.');
+        alert(data?.message || 'Öğretmen silinemedi.');
         return;
       }
 
@@ -353,11 +359,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteCounselor = async (counselor: Counselor) => {
-    if (
-      !window.confirm(
-        `${counselor.name} adlı rehberlik uzmanını silmek istediğinize emin misiniz?`
-      )
-    ) {
+    const confirmText = window.prompt(
+      `${counselor.name} adlı rehberlik uzmanını silmek istediğinize emin misiniz?\nOnaylamak için kutuya büyük harflerle "SİL" yazınız:`
+    );
+    if (confirmText !== 'SİL') {
       return;
     }
 
@@ -368,7 +373,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
 
       if (rpcError || !data || data.error) {
-        alert('Rehberlik uzmanı silinemedi.');
+        alert(data?.message || 'Rehberlik uzmanı silinemedi.');
         return;
       }
 
