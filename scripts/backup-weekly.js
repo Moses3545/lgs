@@ -21,7 +21,21 @@ const SUPABASE_KEY = (typeof rawKey === 'string' && rawKey.length > 20 && rawKey
   ? rawKey.trim()
   : DEFAULT_ANON_KEY;
 
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Node.js ortamında WebSocket eksikliğine karşı koruma (Supabase Realtime WebSocket gereksinimi)
+if (typeof globalThis.WebSocket === 'undefined') {
+  globalThis.WebSocket = class DummyWebSocket {
+    constructor() {}
+    close() {}
+    send() {}
+  };
+}
+
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
 
 const SUBJECTS = ['Türkçe', 'Paragraf', 'Matematik', 'Fen Bilimleri', 'T.C. İnkılap Tarihi', 'Din Kültürü', 'İngilizce'];
 
@@ -233,6 +247,10 @@ async function runBackup() {
     `  - \`${jsonFilename}\` (JSON Veritabanı Dökümü)\n`;
 
   fs.writeFileSync(path.join(backupDir, 'summary.md'), summaryMd, 'utf-8');
+
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryMd);
+  }
 
   // GitHub Environment File outputs
   if (process.env.GITHUB_OUTPUT) {

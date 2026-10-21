@@ -12,7 +12,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   backup:
@@ -22,11 +22,13 @@ jobs:
     steps:
       - name: Kodu Çek
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Node.js Kurulumu
+      - name: Node.js Kurulumu (Node 22 LTS)
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Bağımlılıkları Yükle
@@ -52,12 +54,41 @@ jobs:
           retention-days: 90
           overwrite: true
 
+      - name: Yedekleri backups Dalına Kalıcı Olarak Kaydet
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p /tmp/lgs_yedek_arsiv
+          cp -r backups/* /tmp/lgs_yedek_arsiv/ 2>/dev/null || true
+          if git ls-remote --exit-code --heads origin backups; then
+            git fetch origin backups
+            git checkout -f backups --
+          else
+            git checkout --orphan backups
+            git rm -rf .
+          fi
+          mkdir -p arsiv
+          cp -r /tmp/lgs_yedek_arsiv/* arsiv/ 2>/dev/null || true
+          cat << 'EOF' > README.md
+# 📦 LGS Soru Takip - Otomatik Sistem Yedekleri
+Bu dalda Supabase veritabanından her hafta alınan otomatik JSON ve Excel yedekleri güvenle arşivlenmektedir.
+EOF
+          git add arsiv README.md
+          if git diff --staged --quiet; then
+            echo "Yeni değişiklik yok, commit atlanıyor."
+          else
+            git commit -m "Otomatik haftalık yedek: $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push origin backups
+          fi
+
       - name: E-Posta Gönderimi (SMTP Yapılandırılmışsa)
         if: steps.create_backup.outputs.can_send_mail == 'true'
         uses: dawidd6/action-send-mail@v3
+        continue-on-error: true
         with:
           server_address: ${{ secrets.SMTP_SERVER }}
           server_port: ${{ steps.create_backup.outputs.smtp_port }}
+          secure: ${{ steps.create_backup.outputs.smtp_port == '465' }}
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: '[LGS Soru Takip] Haftalık Otomatik Veri Yedeği Raporu'
